@@ -5,18 +5,13 @@
 
 
 
-
-
-
-
-
-
-### under developing process
+### Under Construction
 #### Todo
 - Create local virtual environment
 - Check latest notebook version test
 - Generate util function
 - Generate test image set
+  - Check image reference
 
 - Generate web app UI
   - Normal form
