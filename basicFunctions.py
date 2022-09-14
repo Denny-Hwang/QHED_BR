@@ -1,11 +1,11 @@
 ## Basic functions
 
-import numpy as np
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-from matplotlib import style
-from PIL import Image
 import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+from matplotlib import style
+
 style.use('bmh')
 
 

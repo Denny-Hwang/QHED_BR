@@ -20,7 +20,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="61962d4b-3fe0-4629-851a-d8b895c4fd72" name="Default Changelist" comment="basic function added">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/qhed.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/functions/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/basicFunctions.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,6 +51,7 @@
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="D:/Dennis/3-2 삼성전기/00 연구/00 학술활동/202206 CVPR(online)/99_CVPR_Quantum/Semiconductor Defect Detection by Hybrid Classical-Quantum Deep Learning/repos" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
@@ -101,6 +104,7 @@
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Generation of projects guide line" />
@@ -109,18 +113,18 @@
     <option name="LAST_COMMIT_MESSAGE" value="basic function added" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="4210" y="290" key="FileChooserDialogImpl" timestamp="1663103556733">
+    <state x="4210" y="290" key="FileChooserDialogImpl" timestamp="1663176153582">
       <screen x="3840" y="0" width="1920" height="1040" />
     </state>
-    <state x="4210" y="290" key="FileChooserDialogImpl/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663103556733" />
+    <state x="4210" y="290" key="FileChooserDialogImpl/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663176153582" />
     <state x="4638" y="417" width="324" height="280" key="Github.ShareDialog" timestamp="1663016433204">
       <screen x="3840" y="0" width="1920" height="1040" />
     </state>
     <state x="4638" y="417" width="324" height="280" key="Github.ShareDialog/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663016433204" />
-    <state x="4301" y="164" key="SettingsEditor" timestamp="1663104535266">
+    <state x="4301" y="164" key="SettingsEditor" timestamp="1663172603825">
       <screen x="3840" y="0" width="1920" height="1040" />
     </state>
-    <state x="4301" y="164" key="SettingsEditor/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663104535266" />
+    <state x="4301" y="164" key="SettingsEditor/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663172603825" />
     <state x="4392" y="239" key="Vcs.Push.Dialog.v2" timestamp="1663104999984">
       <screen x="3840" y="0" width="1920" height="1040" />
     </state>
