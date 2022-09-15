@@ -19,10 +19,9 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="61962d4b-3fe0-4629-851a-d8b895c4fd72" name="Default Changelist" comment="basic function added">
-      <change afterPath="$PROJECT_DIR$/qhed.py" afterDir="false" />
+    <list default="true" id="61962d4b-3fe0-4629-851a-d8b895c4fd72" name="Default Changelist" comment="QHED function added">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/functions/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/basicFunctions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/qhed.py" beforeDir="false" afterPath="$PROJECT_DIR$/qhed.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -91,7 +90,14 @@
       <option name="project" value="LOCAL" />
       <updated>1663104939282</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="QHED function added">
+      <created>1663177030526</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1663177030526</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -110,7 +116,8 @@
     <MESSAGE value="Generation of projects guide line" />
     <MESSAGE value="Readme fixed" />
     <MESSAGE value="basic function added" />
-    <option name="LAST_COMMIT_MESSAGE" value="basic function added" />
+    <MESSAGE value="QHED function added" />
+    <option name="LAST_COMMIT_MESSAGE" value="QHED function added" />
   </component>
   <component name="WindowStateProjectService">
     <state x="4210" y="290" key="FileChooserDialogImpl" timestamp="1663176153582">
@@ -125,9 +132,9 @@
       <screen x="3840" y="0" width="1920" height="1040" />
     </state>
     <state x="4301" y="164" key="SettingsEditor/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663172603825" />
-    <state x="4392" y="239" key="Vcs.Push.Dialog.v2" timestamp="1663104999984">
+    <state x="4392" y="239" key="Vcs.Push.Dialog.v2" timestamp="1663177056960">
       <screen x="3840" y="0" width="1920" height="1040" />
     </state>
-    <state x="4392" y="239" key="Vcs.Push.Dialog.v2/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663104999984" />
+    <state x="4392" y="239" key="Vcs.Push.Dialog.v2/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663177056960" />
   </component>
 </project>
