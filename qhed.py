@@ -5,19 +5,19 @@ from qiskit.compiler import transpile, assemble
 from qiskit.tools.jupyter import *
 from qiskit.visualization import *
 
-from basicFunctions import amplitude_encode, plot_image
+from basicFunctions import amplitude_encode, plot_image, boundary_zero
 
 import numpy as np
-
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 from matplotlib import style
 style.use('bmh')
 
 def QHED(image, thr_ratio=0.7, circuit_display=True, plot_ED_result=True):
     '''
-
     '''
     row, col = image.shape[0], image.shape[1]
-    qb_size = np.int(np.ceil(np.log2(row * col)))
+    qb_size = int(np.ceil(np.log2(row * col)))
 
     # 1) Data encoding
     # Horizontal: Original image
@@ -64,7 +64,7 @@ def QHED(image, thr_ratio=0.7, circuit_display=True, plot_ED_result=True):
         circ_list = [qc_h, qc_v]
 
         # 3) Measure the state
-        # Simulating the cirucits
+        # Simulating the circuits
         back = Aer.get_backend('statevector_simulator')
         results = execute(circ_list, backend=back).result()
         sim_sv_h = results.get_statevector(qc_h)
@@ -106,9 +106,9 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000, circuit_display=True, plot_ed_r
 
     '''
 
-    width_qb = np.int(np.ceil(np.log2(image.shape[0])))
+    width_qb = int(np.ceil(np.log2(image.shape[0])))
 
-    ## 1) Data encoding
+    # 1) Data encoding
     # Horizontal: Original image
     image_norm_h = amplitude_encode(image)
     # Vertical: Transpose of Original image
@@ -118,7 +118,7 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000, circuit_display=True, plot_ed_r
         return image
 
     else:
-        ## 2) Generate quantum circuit
+        # 2) Generate quantum circuit
         # Initialize the number of qubits
         data_qb = width_qb * 2
         anc_qb = 1
@@ -152,7 +152,7 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000, circuit_display=True, plot_ed_r
         # Combine both circuits into a single list
         circ_list = [qc_h, qc_v]
 
-        ## 3) Measure the state
+        # 3) Measure the state
         # Simulating the cirucits
         backend = Aer.get_backend('qasm_simulator')
 
@@ -175,7 +175,7 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000, circuit_display=True, plot_ed_r
         sim_keys_h = sim_counts_h.keys()
         sim_keys_v = sim_counts_v.keys()
 
-        ## 4) Result postprocessing in classical computer
+        # 4) Result postprocessing in classical computer
         # Filter and extract the counts for odd-numbered states
         # and make the full edge-detected image by adding horizontal and vertical scans
         edge_scan_sim_h = np.array([sim_counts_h[f'{2 * i + 1:03b}'] if f'{2 * i + 1:03b}' in sim_keys_h else 0 for i in
@@ -194,4 +194,118 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000, circuit_display=True, plot_ed_r
             plot_image(edge_detected_sim, 'Edge Detected image(QASM)')
 
         return edge_detected_sim
+
+## Need fixing for web version!
+def edge_detection_stride(input_img, width_qb=5, thr_ratio=0.5,
+                          stride_width=31, img_info_print=True,
+                          result_plot=True, patch_boundary_zero=True,
+                          circuit_display=False, plot_ed_patch=False,
+                          result_save=False, result_path='path', save_fig_name='result_img'
+                          ):
+    '''
+    '''
+    result_img = np.zeros(input_img.shape)
+
+    width_patch = 2 ** width_qb
+
+    num_iter = (input_img.shape[0] - width_patch) // (stride_width)
+
+    #     if((num_iter * stride_width + width_patch) != input_img.shape[0]):
+    num_iter += 2
+
+    if img_info_print:
+        print(f"input size : {input_img.shape}")
+        print(f"num_iter : {num_iter}")
+
+    iter_last = num_iter - 1
+
+    for row in tqdm(range(num_iter)):
+        for col in range(num_iter):
+            if (row != iter_last) & (col == iter_last):  # rightmost vertical patch
+                patch = input_img[stride_width * row:stride_width * row + width_patch, -width_patch:]
+                edge_result = QHED(patch,
+                                   thr_ratio=thr_ratio,
+                                   circuit_display=circuit_display,
+                                   plot_ed_result=plot_ed_patch)
+
+                if len(np.unique(edge_result)) == 1:
+                    edge_result = np.zeros_like(edge_result)
+
+                if patch_boundary_zero:
+                    result_img[stride_width * row:stride_width * row + width_patch, -width_patch:] += boundary_zero(
+                        edge_result)
+                else:
+                    result_img[stride_width * row:stride_width * row + width_patch, -width_patch:] += edge_result
+
+            elif (row == iter_last) & (col != iter_last):  # bottom patch
+                patch = input_img[-width_patch:, stride_width * col: stride_width * col + width_patch]
+                edge_result = QHED(patch,
+                                   thr_ratio=thr_ratio,
+                                   circuit_display=circuit_display,
+                                   plot_ed_result=plot_ed_patch)
+
+                if len(np.unique(edge_result)) == 1:
+                    edge_result = np.zeros_like(edge_result)
+
+                if patch_boundary_zero:
+                    result_img[-width_patch:, stride_width * col: stride_width * col + width_patch] += boundary_zero(
+                        edge_result)
+                else:
+                    result_img[-width_patch:, stride_width * col: stride_width * col + width_patch] += edge_result
+
+            elif (row == iter_last) & (col == iter_last):  # bottom and rightmost patch
+                patch = input_img[-width_patch:, -width_patch:]
+                edge_result = QHED(patch,
+                                   thr_ratio=thr_ratio,
+                                   circuit_display=circuit_display,
+                                   plot_ed_result=plot_ed_patch)
+
+                if len(np.unique(edge_result)) == 1:
+                    edge_result = np.zeros_like(edge_result)
+
+                if patch_boundary_zero:
+                    result_img[-width_patch:, -width_patch:] += boundary_zero(edge_result)
+                else:
+                    result_img[-width_patch:, -width_patch:] += edge_result
+
+            else:  # etc.
+                patch = input_img[stride_width * row: stride_width * row + width_patch, stride_width * col: stride_width * col + width_patch]
+                edge_result = QHED(patch,
+                                   thr_ratio=thr_ratio,
+                                   circuit_display=circuit_display,
+                                   plot_ed_result=plot_ed_patch)
+
+                if len(np.unique(edge_result)) == 1:
+                    edge_result = np.zeros_like(edge_result)
+
+                if patch_boundary_zero:
+                    result_img[stride_width * row: stride_width * row + width_patch,
+                    stride_width * col: stride_width * col + width_patch] += boundary_zero(edge_result)
+                else:
+                    result_img[stride_width * row: stride_width * row + width_patch,
+                    stride_width * col: stride_width * col + width_patch] += edge_result
+
+    threshold = 1
+    result_img[result_img > threshold] = 1
+
+    if result_plot:
+        # Display the image
+        plt.figure(figsize=(18, 8))
+        plt.subplot(121)
+        plt.title('Original Image')
+        plt.xticks(range(0, result_img.shape[0] + 1, 32))
+        plt.yticks(range(0, result_img.shape[1] + 1, 32))
+        plt.imshow(input_img, extent=[0, result_img.shape[0], result_img.shape[1], 0], cmap='gray')
+
+        plt.subplot(122)
+        plt.title('Edge detected Image')
+        plt.xticks(range(0, result_img.shape[0] + 1, 32))
+        plt.yticks(range(0, result_img.shape[1] + 1, 32))
+        plt.imshow(result_img, extent=[0, result_img.shape[0], result_img.shape[1], 0], cmap='gray')
+
+        if result_save:
+            plt.savefig(result_path + f"./{save_fig_name}.png", bbox_inches='tight', pad_inches=0, dpi=600)
+        plt.show()
+
+    return result_img
 
