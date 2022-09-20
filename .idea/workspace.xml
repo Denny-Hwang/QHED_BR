@@ -19,9 +19,8 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="61962d4b-3fe0-4629-851a-d8b895c4fd72" name="Default Changelist" comment="Design UI draft">
-      <change afterPath="$PROJECT_DIR$/classical_ed_methods.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="61962d4b-3fe0-4629-851a-d8b895c4fd72" name="Default Changelist" comment="add classical edge detection methods">
+      <change beforePath="$PROJECT_DIR$/classical_ed_methods.py" beforeDir="false" afterPath="$PROJECT_DIR$/classical_ed_methods.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -111,7 +110,14 @@
       <option name="project" value="LOCAL" />
       <updated>1663711768694</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="add classical edge detection methods">
+      <created>1663712206740</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1663712206740</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -133,7 +139,8 @@
     <MESSAGE value="QHED function added" />
     <MESSAGE value="QHED stride function draft added" />
     <MESSAGE value="Design UI draft" />
-    <option name="LAST_COMMIT_MESSAGE" value="Design UI draft" />
+    <MESSAGE value="add classical edge detection methods" />
+    <option name="LAST_COMMIT_MESSAGE" value="add classical edge detection methods" />
   </component>
   <component name="WindowStateProjectService">
     <state x="296" y="230" key="FileChooserDialogImpl" timestamp="1663612216041">

@@ -1,11 +1,9 @@
+import cv2
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib import style
 style.use('bmh')
-
-import cv2
-
 
 def sobel_edge_detection(img, kernel_size=3, remove_noise=False):
     if len(img.shape) == 3:
