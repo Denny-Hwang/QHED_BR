@@ -19,9 +19,9 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="61962d4b-3fe0-4629-851a-d8b895c4fd72" name="Default Changelist" comment="edit functions">
-      <change afterPath="$PROJECT_DIR$/docs.py" afterDir="false" />
+    <list default="true" id="61962d4b-3fe0-4629-851a-d8b895c4fd72" name="Default Changelist" comment="Create docs file">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs.py" beforeDir="false" afterPath="$PROJECT_DIR$/docs.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -125,7 +125,14 @@
       <option name="project" value="LOCAL" />
       <updated>1663712240107</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="Create docs file">
+      <created>1663944821072</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1663944821073</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -149,7 +156,8 @@
     <MESSAGE value="Design UI draft" />
     <MESSAGE value="add classical edge detection methods" />
     <MESSAGE value="edit functions" />
-    <option name="LAST_COMMIT_MESSAGE" value="edit functions" />
+    <MESSAGE value="Create docs file" />
+    <option name="LAST_COMMIT_MESSAGE" value="Create docs file" />
   </component>
   <component name="WindowStateProjectService">
     <state x="296" y="230" key="FileChooserDialogImpl" timestamp="1663612216041">
@@ -165,10 +173,10 @@
       <screen x="3840" y="0" width="1920" height="1040" />
     </state>
     <state x="4301" y="164" key="SettingsEditor/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663172603825" />
-    <state x="442" y="189" key="Vcs.Push.Dialog.v2" timestamp="1663712248379">
+    <state x="442" y="189" key="Vcs.Push.Dialog.v2" timestamp="1663944825774">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
-    <state x="442" y="189" key="Vcs.Push.Dialog.v2/0.0.1536.824/3840.0.1920.1040@0.0.1536.824" timestamp="1663712248379" />
+    <state x="442" y="189" key="Vcs.Push.Dialog.v2/0.0.1536.824/3840.0.1920.1040@0.0.1536.824" timestamp="1663944825774" />
     <state x="4392" y="239" key="Vcs.Push.Dialog.v2/0.0.1536.824/3840.0.1920.1040@3840.0.1920.1040" timestamp="1663349509695" />
   </component>
 </project>
