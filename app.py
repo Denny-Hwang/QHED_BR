@@ -211,7 +211,7 @@ elif page == "2. QHED Circuit Explained":
     with col1:
         patch_size_exp = st.selectbox(
             "Patch size (2^n x 2^n pixels)",
-            [1, 2, 3],
+            list(range(1, 6)),
             index=0,
             format_func=lambda x: f"{2**x}x{2**x} = {4**x} pixels ({2*x} data qubits + 1 ancilla)"
         )
@@ -230,16 +230,20 @@ elif page == "2. QHED Circuit Explained":
 
     qc = build_qhed_circuit(sample, scan=scan_dir)
     if qc is not None:
-        fig = qc.draw('mpl', fold=-1)
-        st.pyplot(fig)
-        plt.close()
-
-        st.download_button(
-            "Download circuit diagram",
-            fig_to_bytes(fig),
-            file_name="qhed_circuit.png",
-            mime="image/png"
-        )
+        try:
+            fig = qc.draw('mpl', fold=-1)
+            st.pyplot(fig)
+            st.download_button(
+                "Download circuit diagram",
+                fig_to_bytes(fig),
+                file_name="qhed_circuit.png",
+                mime="image/png"
+            )
+            plt.close(fig)
+        except Exception:
+            # Fallback to text drawing if pylatexenc is not installed
+            circuit_text = qc.draw('text', fold=120)
+            st.code(str(circuit_text), language=None)
     else:
         st.warning("Could not build circuit (uniform image).")
 
@@ -350,22 +354,36 @@ elif page == "3. Interactive Edge Detection":
     with col_p1:
         img_size_exp = st.selectbox(
             "Resize image to (2^n x 2^n)",
-            [5, 6, 7, 8],
-            index=1,
-            format_func=lambda x: f"{2**x}x{2**x} ({2**x} pixels)"
+            list(range(4, 10)),
+            index=2,
+            format_func=lambda x: f"{2**x}x{2**x} ({2**(2*x):,} pixels)"
         )
         img_size = 2 ** img_size_exp
 
     with col_p2:
+        # Max patch qubits per dim: up to img_size_exp (whole image in one shot)
+        max_patch_qb = min(img_size_exp, 8)  # cap at 8 (256x256 patch = 17 qubits)
+        patch_qb_options = list(range(1, max_patch_qb + 1))
+        default_idx = min(1, len(patch_qb_options) - 1)
         patch_qb = st.selectbox(
             "Patch qubits (per dimension)",
-            [1, 2, 3],
-            index=1,
-            format_func=lambda x: f"{x} qubits -> {2**x}x{2**x} patch"
+            patch_qb_options,
+            index=default_idx,
+            format_func=lambda x: f"{x} qb/dim -> {2**x}x{2**x} patch ({2*x}+1 = {2*x+1} total qubits)"
         )
 
     with col_p3:
         thr_ratio = st.slider("Threshold ratio", 0.1, 2.0, 0.7, 0.1)
+
+    if patch_qb >= 5:
+        est_patch_size = 2 ** patch_qb
+        est_total_qb = 2 * patch_qb + 1
+        st.warning(
+            f"Large patch size: {est_patch_size}x{est_patch_size} pixels per patch "
+            f"({est_total_qb} qubits). Statevector simulation operates on a "
+            f"2^{est_total_qb} = {2**est_total_qb:,} dimensional vector per patch. "
+            f"This may be slow for large images."
+        )
 
     col_p4, col_p5 = st.columns(2)
     with col_p4:
@@ -676,7 +694,8 @@ elif page == "4. Complexity Comparison":
         for qb in qubits_options:
             patch = 2 ** qb
             patches_no_br = [(s // patch) ** 2 if s >= patch else 1 for s in sizes]
-            patches_br = [((s - 1) // (patch - 1)) ** 2 if s >= patch and patch > 1 else s**2 for s in sizes]
+            br_stride = max(patch - 2, 1)
+            patches_br = [((s - 1) // br_stride + 1) ** 2 if s >= patch else 1 for s in sizes]
             ax.plot(sizes, patches_br, 'o-', label=f'{qb} qb/dim ({patch}x{patch} patch, BR)', linewidth=2)
 
         ax.set_xlabel('Image side length (pixels)', fontsize=12)
@@ -694,7 +713,8 @@ elif page == "4. Complexity Comparison":
         for qb in [2, 3, 4]:
             patch = 2 ** qb
             patches_no_br = [(s // patch) ** 2 if s >= patch else 1 for s in sizes]
-            patches_br = [((s - 1) // (patch - 1)) ** 2 if s >= patch and patch > 1 else s**2 for s in sizes]
+            br_stride = max(patch - 2, 1)
+            patches_br = [((s - 1) // br_stride + 1) ** 2 if s >= patch else 1 for s in sizes]
             ax2.plot(sizes, patches_no_br, 's--', label=f'{qb} qb w/o BR', alpha=0.7)
             ax2.plot(sizes, patches_br, 'o-', label=f'{qb} qb w/ BR', linewidth=2)
 
