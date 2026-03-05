@@ -236,6 +236,15 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
     result_img = np.zeros((h, w), dtype=np.float64)
     count_img = np.zeros((h, w), dtype=np.float64)
 
+    # Interior mask: 1 for non-boundary pixels, 0 for boundary
+    # Used to count only pixels where boundary_zero did NOT zero the value
+    interior_mask = np.ones((width_patch, width_patch), dtype=np.float64)
+    if patch_boundary_zero:
+        interior_mask[0, :] = 0
+        interior_mask[-1, :] = 0
+        interior_mask[:, 0] = 0
+        interior_mask[:, -1] = 0
+
     total_patches = len(row_positions) * len(col_positions)
     current = 0
 
@@ -248,13 +257,14 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
                 edge_result = boundary_zero(edge_result)
 
             result_img[r:r + width_patch, c:c + width_patch] += edge_result.astype(np.float64)
-            count_img[r:r + width_patch, c:c + width_patch] += 1.0
+            count_img[r:r + width_patch, c:c + width_patch] += interior_mask
 
             current += 1
             if progress_callback:
                 progress_callback(current, total_patches)
 
-    # Majority voting: if more than half of overlapping patches detected edge, keep it
+    # Average over patches where the pixel was interior (not boundary-zeroed).
+    # Pixels with count=0 are image-border pixels (always boundary) -- leave as 0.
     count_img[count_img == 0] = 1
     result_img = (result_img / count_img >= 0.5).astype(np.uint8)
 
