@@ -325,8 +325,15 @@ elif page == "3. Interactive Edge Detection":
     if image_source == "Sample images":
         import os
         img_dir = os.path.join(os.path.dirname(__file__), 'images')
-        available = sorted([f for f in os.listdir(img_dir)
-                           if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
+        img_extensions = ('.png', '.jpg', '.jpeg', '.bmp')
+        # Collect images from root and all subdirectories
+        available = []
+        for root, _dirs, files in os.walk(img_dir):
+            for f in sorted(files):
+                if f.lower().endswith(img_extensions):
+                    rel = os.path.relpath(os.path.join(root, f), img_dir)
+                    available.append(rel)
+        available.sort()
         if available:
             selected = st.selectbox("Select sample image", available)
             img_path = os.path.join(img_dir, selected)
@@ -334,7 +341,7 @@ elif page == "3. Interactive Edge Detection":
             st.image(raw, caption=f"Selected: {selected}", width=300)
             input_image = raw
         else:
-            st.warning("No sample images found in ./images/")
+            st.warning("No sample images found in ./images/ (including subdirectories)")
     else:
         uploaded = st.file_uploader("Upload an image", type=['png', 'jpg', 'jpeg', 'bmp'])
         if uploaded:
@@ -361,10 +368,14 @@ elif page == "3. Interactive Edge Detection":
         img_size = 2 ** img_size_exp
 
     with col_p2:
-        # Max patch qubits per dim: up to img_size_exp (whole image in one shot)
-        max_patch_qb = min(img_size_exp, 8)  # cap at 8 (256x256 patch = 17 qubits)
-        patch_qb_options = list(range(1, max_patch_qb + 1))
-        default_idx = min(1, len(patch_qb_options) - 1)
+        # Min 3 qb/dim (8x8 patch), max capped by image size and 8 (256x256 = 17 qubits)
+        max_patch_qb = min(img_size_exp, 8)
+        min_patch_qb = 3  # minimum 8x8 patches
+        patch_qb_options = list(range(min_patch_qb, max_patch_qb + 1))
+        if not patch_qb_options:
+            st.error(f"Image too small for minimum patch size (8x8). Increase image size to at least 16x16.")
+            st.stop()
+        default_idx = len(patch_qb_options) - 1  # default to maximum qubits
         patch_qb = st.selectbox(
             "Patch qubits (per dimension)",
             patch_qb_options,
@@ -413,7 +424,8 @@ elif page == "3. Interactive Edge Detection":
         total_qubits = total_data_qubits + 1
 
         n_patches_no_overlap = (img_size // patch_size) ** 2
-        n_patches_overlap = ((img_size - 1) // (patch_size - 1)) ** 2 if patch_size > 1 else img_size ** 2
+        br_stride = max(patch_size - 2, 1)
+        n_patches_overlap = int(np.ceil((img_size - 2) / br_stride)) ** 2 if patch_size > 2 else img_size ** 2
 
         st.markdown(f"""
         **Configuration:**
@@ -664,139 +676,569 @@ elif page == "3. Interactive Edge Detection":
 elif page == "4. Complexity Comparison":
     st.title("Computational Complexity: QHED vs Classical")
 
-    st.header("Theoretical Complexity")
+    # ------------------------------------------------------------------
+    # Section 1: Notation & Setup
+    # ------------------------------------------------------------------
+    st.header("1. Notation and Setup")
+    st.markdown(r"""
+    We compare the computational complexity of QHED (with and without Boundary Restoration)
+    against classical edge detection methods (Sobel, Prewitt, Laplacian, Canny).
 
-    st.markdown("""
-    | Method | Type | Time Complexity | Space (Memory) |
-    |--------|------|-----------------|----------------|
-    | Sobel / Prewitt | Classical | O(n^2) per kernel | O(n^2) pixels |
-    | Canny | Classical | O(n^2) multi-stage | O(n^2) pixels |
-    | Laplacian | Classical | O(n^2) | O(n^2) pixels |
-    | **QHED** | **Quantum** | **O(n^2) encoding + O(1) detection** | **O(log n) qubits** |
-    | **QHED-BR** | **Quantum** | **O(n^2) encoding + Q*O(1) detection** | **O(log n) qubits** |
+    | Symbol | Definition |
+    |--------|-----------|
+    | $N$ | Image side length ($N \times N$ image, total $N^2$ pixels) |
+    | $p = 2^k$ | Patch side length ($p \times p$ patch, total $p^2$ pixels) |
+    | $k$ | Number of qubits per spatial dimension |
+    | $q = 2k + 1$ | Total qubits per QHED circuit ($2k$ data qubits + 1 ancilla) |
+    | $Q$ | Number of patches to process the full image |
+    | $s$ | Stride (step size between adjacent patches) |
 
-    Where:
-    - **n** = image side length (total pixels = n^2)
-    - **Q** = number of patches
-    - QHED requires only **ceil(log2(n^2)) + 1** qubits
+    **Patch counts:**
+
+    $$Q_{\text{no-BR}} = \left\lceil \frac{N}{p} \right\rceil^2 \quad(\text{stride } s = p, \text{ no overlap})$$
+
+    $$Q_{\text{BR}} = \left\lceil \frac{N - 2}{p - 2} \right\rceil^2 \quad(\text{stride } s = p - 2, \text{ 2-pixel overlap with boundary zeroing})$$
     """)
 
-    st.header("Patch Count Analysis")
+    # ------------------------------------------------------------------
+    # Section 2: Operation breakdown per patch
+    # ------------------------------------------------------------------
+    st.header("2. QHED Circuit: Per-Patch Operation Breakdown")
+    st.markdown(r"""
+    Each QHED patch goes through three stages. Understanding these separately is critical
+    for an honest complexity comparison.
 
-    st.markdown("See how many patches are needed for different image sizes and qubit counts:")
+    ---
 
-    col1, col2 = st.columns(2)
-    with col1:
-        sizes = [2**i for i in range(4, 11)]  # 16 to 1024
-        qubits_options = [1, 2, 3, 4, 5]
+    **Stage 1 -- Amplitude Encoding (Classical $\to$ Quantum)**
 
-        fig, ax = plt.subplots(figsize=(8, 5))
-        for qb in qubits_options:
-            patch = 2 ** qb
-            patches_no_br = [(s // patch) ** 2 if s >= patch else 1 for s in sizes]
-            br_stride = max(patch - 2, 1)
-            patches_br = [((s - 1) // br_stride + 1) ** 2 if s >= patch else 1 for s in sizes]
-            ax.plot(sizes, patches_br, 'o-', label=f'{qb} qb/dim ({patch}x{patch} patch, BR)', linewidth=2)
+    The image patch is encoded into the amplitudes of a quantum state:
 
-        ax.set_xlabel('Image side length (pixels)', fontsize=12)
-        ax.set_ylabel('Number of patches', fontsize=12)
-        ax.set_title('Patches Required vs Image Size (with BR)', fontsize=13)
-        ax.legend(fontsize=9)
-        ax.set_yscale('log')
-        ax.set_xscale('log', base=2)
-        ax.grid(True, alpha=0.3)
-        st.pyplot(fig)
-        plt.close(fig)
+    $$|\psi\rangle = \sum_{i=0}^{p^2 - 1} a_i |i\rangle, \quad \text{where } \sum |a_i|^2 = 1$$
 
-    with col2:
-        fig2, ax2 = plt.subplots(figsize=(8, 5))
-        for qb in [2, 3, 4]:
-            patch = 2 ** qb
-            patches_no_br = [(s // patch) ** 2 if s >= patch else 1 for s in sizes]
-            br_stride = max(patch - 2, 1)
-            patches_br = [((s - 1) // br_stride + 1) ** 2 if s >= patch else 1 for s in sizes]
-            ax2.plot(sizes, patches_no_br, 's--', label=f'{qb} qb w/o BR', alpha=0.7)
-            ax2.plot(sizes, patches_br, 'o-', label=f'{qb} qb w/ BR', linewidth=2)
+    Preparing an arbitrary $m$-qubit state requires $O(2^m)$ CNOT gates
+    (Shende, Bullock & Markov, 2006). Here $m = 2k$, so:
 
-        ax2.set_xlabel('Image side length (pixels)', fontsize=12)
-        ax2.set_ylabel('Number of patches', fontsize=12)
-        ax2.set_title('BR vs No-BR Patch Count', fontsize=13)
-        ax2.legend(fontsize=9)
-        ax2.set_yscale('log')
-        ax2.set_xscale('log', base=2)
-        ax2.grid(True, alpha=0.3)
-        st.pyplot(fig2)
-        plt.close(fig2)
+    $$T_{\text{encode}} = O(2^{2k}) = O(p^2) \text{ quantum gates per patch}$$
 
-    st.header("Quantum Advantage: Memory Efficiency")
+    This is run twice (horizontal and vertical scans), giving $2 \times O(p^2)$ total.
 
-    st.markdown("""
-    The key quantum advantage lies in **exponential memory compression**:
+    ---
 
-    | Image Size | Pixels | Classical Memory | Quantum Qubits |
-    |-----------|--------|-----------------|----------------|
-    | 4x4 | 16 | 16 values | 4 + 1 = **5** |
-    | 8x8 | 64 | 64 values | 6 + 1 = **7** |
-    | 16x16 | 256 | 256 values | 8 + 1 = **9** |
-    | 32x32 | 1024 | 1024 values | 10 + 1 = **11** |
-    | 64x64 | 4096 | 4096 values | 12 + 1 = **13** |
-    | 256x256 | 65536 | 65536 values | 16 + 1 = **17** |
+    **Stage 2 -- Quantum Edge Detection (the "detection" step)**
+
+    The core quantum circuit consists of:
+
+    | Operation | Gate count |
+    |-----------|-----------|
+    | Hadamard on ancilla | $O(1)$ |
+    | $D_{2n-1}$: cyclic-shift (increment-by-1) on $q$ qubits | $O(q) = O(\log p^2)$ |
+    | Hadamard on ancilla | $O(1)$ |
+
+    The permutation unitary $D_{2n-1}$ maps $|x\rangle \to |x + 1 \bmod 2^q\rangle$.
+    This is an **adder circuit** implementable with a cascade of $O(q)$ Toffoli gates
+    (Draper, 2000; Cuccaro et al., 2004):
+
+    $$T_{\text{detect}} = O(q) = O(2k + 1) = O(\log p^2) \text{ quantum gates per patch}$$
+
+    This is the step where quantum parallelism provides its advantage: a single quantum
+    circuit computes all $p^2$ pixel differences simultaneously.
+
+    ---
+
+    **Stage 3 -- Readout / Decoding (Quantum $\to$ Classical)**
+
+    - **Statevector simulation**: Extract $2^q$ amplitudes, select odd-indexed entries $\to O(p^2)$
+    - **Shot-based (QASM)**: Repeat measurement $S$ times, process counts $\to O(S \cdot p^2)$
+    - **Thresholding**: Compare each pixel against threshold $\to O(p^2)$
+
+    $$T_{\text{readout}} = O(p^2) \text{ classical operations per patch}$$
+
+    ---
+
+    **Summary per patch (run twice for H/V scans):**
+
+    | Stage | Operations | Type |
+    |-------|-----------|------|
+    | Encoding | $O(p^2)$ | Quantum gates |
+    | Detection | $O(\log p^2)$ | Quantum gates |
+    | Readout | $O(p^2)$ | Classical ops |
+    | **Total** | **$O(p^2)$** | **Dominated by encoding** |
     """)
 
-    fig3, (ax3a, ax3b) = plt.subplots(1, 2, figsize=(14, 5))
+    # ------------------------------------------------------------------
+    # Section 3: Classical methods
+    # ------------------------------------------------------------------
+    st.header("3. Classical Edge Detection Complexity")
+    st.markdown(r"""
+    Classical methods apply convolution kernels directly on the $N \times N$ image.
 
-    img_sides = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
-    classical_mem = [s*s for s in img_sides]
-    quantum_qubits = [int(np.ceil(np.log2(s*s))) + 1 for s in img_sides]
+    | Method | Kernel | Ops/pixel | Total Time | Space |
+    |--------|--------|-----------|-----------|-------|
+    | **Sobel** | Two $3 \times 3$ kernels ($G_x, G_y$) | $\sim 2 \times (9 \text{ mult} + 8 \text{ add}) + \text{combine} \approx 38$ | $O(N^2)$ | $O(N^2)$ |
+    | **Prewitt** | Two $3 \times 3$ kernels | $\sim 38$ | $O(N^2)$ | $O(N^2)$ |
+    | **Laplacian** | One $3 \times 3$ kernel | $\sim 9 \text{ mult} + 8 \text{ add} = 17$ | $O(N^2)$ | $O(N^2)$ |
+    | **Canny** | Gaussian blur + gradient + NMS + hysteresis | $\sim 4 \times O(N^2)$ | $O(N^2)$ | $O(N^2)$ |
 
-    ax3a.plot(img_sides, classical_mem, 'ro-', label='Classical (pixels)', linewidth=2, markersize=8)
-    ax3a.plot(img_sides, quantum_qubits, 'bs-', label='Quantum (qubits)', linewidth=2, markersize=8)
-    ax3a.set_xlabel('Image side length')
-    ax3a.set_ylabel('Memory units')
-    ax3a.set_title('Memory: Classical vs Quantum')
-    ax3a.set_yscale('log')
-    ax3a.set_xscale('log', base=2)
-    ax3a.legend()
+    All classical methods have:
+
+    $$T_{\text{classical}} = c_{\text{cl}} \cdot N^2, \quad S_{\text{classical}} = O(N^2)$$
+
+    where $c_{\text{cl}}$ is a constant depending on the method (Sobel $\approx 38$, Canny $\approx 100+$).
+    """)
+
+    # ------------------------------------------------------------------
+    # Section 4: Case 1 - Detection only
+    # ------------------------------------------------------------------
+    st.header("4. Case 1: Quantum Detection Only (Excluding Encoding/Decoding)")
+    st.markdown(r"""
+    If we assume quantum data is **already encoded** in quantum memory (e.g., via QRAM)
+    and focus purely on the edge detection operation itself, we can isolate the
+    quantum advantage most clearly.
+
+    **Per patch:** $T_{\text{detect}} = O(\log p^2) = O(k)$
+
+    **Full image (with BR):**
+
+    $$T_{\text{QHED}}^{(\text{detect})} = Q_{\text{BR}} \times O(\log p^2) = \left\lceil \frac{N-2}{p-2} \right\rceil^2 \times O(k)$$
+
+    For large $N \gg p$, this simplifies to:
+
+    $$T_{\text{QHED}}^{(\text{detect})} \approx \frac{N^2}{(p-2)^2} \cdot O(\log p^2)$$
+
+    **Speedup over classical:**
+
+    $$\text{Speedup} = \frac{T_{\text{classical}}}{T_{\text{QHED}}^{(\text{detect})}}
+    = \frac{c_{\text{cl}} \cdot N^2}{\frac{N^2}{(p-2)^2} \cdot c_q \cdot \log p^2}
+    = \frac{c_{\text{cl}}}{c_q} \cdot \frac{(p-2)^2}{\log p^2}$$
+
+    Key observation: **the speedup is independent of $N$** and grows as $\Theta\!\left(\frac{p^2}{\log p}\right)$ with patch size.
+
+    | $k$ (qubits/dim) | $p$ (patch) | $(p-2)^2$ | $\log_2 p^2$ | Speedup factor $\propto \frac{(p-2)^2}{\log_2 p^2}$ |
+    |---|---|---|---|---|
+    | 2 | 4 | 4 | 4 | 1.0 |
+    | 3 | 8 | 36 | 6 | 6.0 |
+    | 4 | 16 | 196 | 8 | 24.5 |
+    | 5 | 32 | 900 | 10 | 90.0 |
+    | 6 | 64 | 3844 | 12 | 320.3 |
+    | 7 | 128 | 15876 | 14 | 1134.0 |
+
+    The quantum advantage grows **super-linearly** with patch size. Even with the modest
+    $p = 4$ ($k = 2$), quantum detection matches classical per-pixel cost; at $p = 16$ ($k = 4$),
+    it is ~25x faster; at $p = 64$ ($k = 6$), ~320x faster.
+    """)
+
+    # --- Graph: Case 1 ---
+    st.subheader("Case 1 Visualization: Detection-Only Complexity")
+
+    sizes = np.array([2**i for i in range(4, 12)])  # 16 to 2048
+    c_cl = 38  # Sobel ops per pixel
+
+    fig1, (ax1a, ax1b) = plt.subplots(1, 2, figsize=(14, 5.5))
+
+    # Left: Total operations vs image size for different k
+    for k in [2, 3, 4, 5, 6]:
+        p = 2 ** k
+        q = 2 * k + 1
+        stride = max(p - 2, 1)
+        Q_br = np.array([int(np.ceil((s - 2) / stride)) ** 2 if s >= p else 1 for s in sizes])
+        ops_detect = Q_br * q  # O(q) gates per patch
+        ax1a.plot(sizes, ops_detect, 'o-', label=f'QHED k={k} (p={p})', linewidth=2, markersize=5)
+
+    classical_ops = c_cl * sizes ** 2
+    ax1a.plot(sizes, classical_ops, 'k^--', label='Sobel (~38 ops/px)', linewidth=2.5, markersize=7)
+
+    ax1a.set_xlabel('Image side length N', fontsize=12)
+    ax1a.set_ylabel('Total operations (gates / ops)', fontsize=12)
+    ax1a.set_title('Case 1: Detection-Only Operations', fontsize=13)
+    ax1a.set_yscale('log')
+    ax1a.set_xscale('log', base=2)
+    ax1a.legend(fontsize=9)
+    ax1a.grid(True, alpha=0.3)
+
+    # Right: Speedup factor vs patch size
+    k_range = np.arange(2, 9)
+    p_range = 2 ** k_range
+    speedup = (p_range - 2) ** 2 / (2 * np.log2(p_range ** 2))  # normalized
+    ax1b.bar(k_range, speedup, color=['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#795548'],
+             edgecolor='black', linewidth=0.5)
+    for i, (ki, sp) in enumerate(zip(k_range, speedup)):
+        ax1b.text(ki, sp * 1.05, f'{sp:.1f}x', ha='center', va='bottom', fontsize=9, fontweight='bold')
+    ax1b.set_xlabel('k (qubits per dimension)', fontsize=12)
+    ax1b.set_ylabel('Speedup factor (p-2)^2 / log(p^2)', fontsize=12)
+    ax1b.set_title('Quantum Speedup vs Patch Size (Detection Only)', fontsize=13)
+    ax1b.set_xticks(k_range)
+    ax1b.set_xticklabels([f'k={k}\np={2**k}' for k in k_range], fontsize=9)
+    ax1b.set_yscale('log')
+    ax1b.grid(True, alpha=0.3, axis='y')
+
+    plt.tight_layout()
+    st.pyplot(fig1)
+    plt.close(fig1)
+
+    # ------------------------------------------------------------------
+    # Section 5: Case 2 - End-to-end
+    # ------------------------------------------------------------------
+    st.header("5. Case 2: End-to-End (Including Encoding & Decoding)")
+    st.markdown(r"""
+    In practice, classical data must be loaded into the quantum computer and results
+    must be read back. This encoding/decoding overhead dominates the total cost.
+
+    **Per patch (×2 for H/V scans):**
+
+    $$T_{\text{patch}}^{(\text{total})} = \underbrace{O(p^2)}_{\text{encode}} + \underbrace{O(\log p^2)}_{\text{detect}} + \underbrace{O(p^2)}_{\text{readout}} = O(p^2)$$
+
+    **Full image (with BR):**
+
+    $$T_{\text{QHED}}^{(\text{e2e})} = Q_{\text{BR}} \times O(p^2)
+    = \left\lceil \frac{N-2}{p-2} \right\rceil^2 \times c_q' \cdot p^2$$
+
+    For large $N \gg p$:
+
+    $$T_{\text{QHED}}^{(\text{e2e})} \approx N^2 \cdot \frac{c_q' \cdot p^2}{(p-2)^2}
+    = c_q' \cdot N^2 \cdot \left(\frac{p}{p-2}\right)^2$$
+
+    **Comparison with classical:**
+
+    $$\frac{T_{\text{QHED}}^{(\text{e2e})}}{T_{\text{classical}}} \approx \frac{c_q'}{c_{\text{cl}}} \cdot \left(\frac{p}{p-2}\right)^2$$
+
+    | $k$ | $p$ | $(p/(p-2))^2$ | Overhead factor |
+    |-----|-----|---------------|-----------------|
+    | 2 | 4 | 4.00 | $4.00 \cdot c_q'/c_{\text{cl}}$ |
+    | 3 | 8 | 1.78 | $1.78 \cdot c_q'/c_{\text{cl}}$ |
+    | 4 | 16 | 1.31 | $1.31 \cdot c_q'/c_{\text{cl}}$ |
+    | 5 | 32 | 1.13 | $1.13 \cdot c_q'/c_{\text{cl}}$ |
+    | 6 | 64 | 1.06 | $1.06 \cdot c_q'/c_{\text{cl}}$ |
+    | $\to \infty$ | $\to \infty$ | $\to 1.00$ | $c_q'/c_{\text{cl}}$ |
+
+    **Key insight:** When encoding is included, QHED and classical methods are both $O(N^2)$.
+    The asymptotic time complexity is the **same**. The overhead factor $(p/(p-2))^2$ converges
+    to 1 as $p$ grows. Whether QHED is actually faster depends on the constant factor ratio
+    $c_q'/c_{\text{cl}}$, which is **hardware-dependent**.
+
+    In current NISQ-era hardware, quantum gate operations are orders of magnitude slower
+    than classical FLOPs, so $c_q' \gg c_{\text{cl}}$ and classical methods are faster in wall-clock time.
+    However, as quantum hardware matures and gate speeds improve, the constants will become comparable.
+    """)
+
+    # --- Graph: Case 2 ---
+    st.subheader("Case 2 Visualization: End-to-End Complexity")
+
+    fig2, (ax2a, ax2b) = plt.subplots(1, 2, figsize=(14, 5.5))
+
+    # Left: Total operations vs N for different k
+    for k in [2, 3, 4, 5, 6]:
+        p = 2 ** k
+        stride = max(p - 2, 1)
+        Q_br = np.array([int(np.ceil((s - 2) / stride)) ** 2 if s >= p else 1 for s in sizes])
+        ops_e2e = Q_br * (2 * p * p)  # encode + readout dominated, ×2 for H/V
+        ax2a.plot(sizes, ops_e2e, 'o-', label=f'QHED k={k} (p={p})', linewidth=2, markersize=5)
+
+    classical_ops = c_cl * sizes ** 2
+    ax2a.plot(sizes, classical_ops, 'k^--', label='Sobel (~38 ops/px)', linewidth=2.5, markersize=7)
+
+    canny_ops = 120 * sizes ** 2
+    ax2a.plot(sizes, canny_ops, 'ks--', label='Canny (~120 ops/px)', linewidth=2, markersize=5, alpha=0.6)
+
+    ax2a.set_xlabel('Image side length N', fontsize=12)
+    ax2a.set_ylabel('Total operations', fontsize=12)
+    ax2a.set_title('Case 2: End-to-End Operations', fontsize=13)
+    ax2a.set_yscale('log')
+    ax2a.set_xscale('log', base=2)
+    ax2a.legend(fontsize=8)
+    ax2a.grid(True, alpha=0.3)
+
+    # Right: Overhead factor (p/(p-2))^2 vs k
+    k_range2 = np.arange(2, 9)
+    p_range2 = 2.0 ** k_range2
+    overhead = (p_range2 / (p_range2 - 2)) ** 2
+    colors2 = ['#F44336', '#FF9800', '#4CAF50', '#2196F3', '#9C27B0', '#00BCD4', '#795548']
+    ax2b.bar(k_range2, overhead, color=colors2, edgecolor='black', linewidth=0.5)
+    ax2b.axhline(y=1.0, color='gray', linestyle='--', linewidth=1.5, label='Classical baseline (1.0x)')
+    for i, (ki, oh) in enumerate(zip(k_range2, overhead)):
+        ax2b.text(ki, oh + 0.05, f'{oh:.2f}x', ha='center', va='bottom', fontsize=9, fontweight='bold')
+    ax2b.set_xlabel('k (qubits per dimension)', fontsize=12)
+    ax2b.set_ylabel('Overhead factor (p/(p-2))^2', fontsize=12)
+    ax2b.set_title('BR Overhead Factor (converges to 1.0)', fontsize=13)
+    ax2b.set_xticks(k_range2)
+    ax2b.set_xticklabels([f'k={k}\np={2**k}' for k in k_range2], fontsize=9)
+    ax2b.legend(fontsize=10)
+    ax2b.grid(True, alpha=0.3, axis='y')
+    ax2b.set_ylim(0.8, max(overhead) + 0.5)
+
+    plt.tight_layout()
+    st.pyplot(fig2)
+    plt.close(fig2)
+
+    # ------------------------------------------------------------------
+    # Section 6: Space complexity
+    # ------------------------------------------------------------------
+    st.header("6. Space Complexity: Exponential Memory Advantage")
+    st.markdown(r"""
+    Regardless of encoding overhead, QHED achieves an **exponential advantage in space (memory)**:
+
+    | Resource | Classical | QHED |
+    |----------|----------|------|
+    | **Per patch** | $O(p^2)$ values in memory | $O(\log p^2) = O(k)$ qubits |
+    | **Per image** | $O(N^2)$ values simultaneously | $O(k)$ qubits (patches processed sequentially) |
+
+    A $p \times p = 2^k \times 2^k$ patch requires:
+    - **Classical:** $p^2 = 2^{2k}$ memory cells
+    - **Quantum:** $2k + 1$ qubits
+
+    This is an **exponential compression**: $2^{2k}$ classical values $\to$ $2k + 1$ qubits.
+
+    | Patch size | Pixels | Classical Memory | Quantum Qubits | Compression ratio |
+    |-----------|--------|-----------------|----------------|-------------------|
+    | $4 \times 4$ | 16 | 16 values | **5** qubits | 3.2x |
+    | $8 \times 8$ | 64 | 64 values | **7** qubits | 9.1x |
+    | $16 \times 16$ | 256 | 256 values | **9** qubits | 28.4x |
+    | $32 \times 32$ | 1024 | 1024 values | **11** qubits | 93.1x |
+    | $64 \times 64$ | 4096 | 4096 values | **13** qubits | 315.1x |
+    | $128 \times 128$ | 16384 | 16384 values | **15** qubits | 1092.3x |
+    | $256 \times 256$ | 65536 | 65536 values | **17** qubits | 3855.1x |
+    """)
+
+    fig3, (ax3a, ax3b) = plt.subplots(1, 2, figsize=(14, 5.5))
+
+    k_vals = np.arange(1, 10)
+    p_vals = 2 ** k_vals
+    classical_mem = p_vals ** 2
+    quantum_mem = 2 * k_vals + 1
+    compression = classical_mem / quantum_mem
+
+    ax3a.semilogy(k_vals, classical_mem, 'ro-', label='Classical: $p^2 = 2^{2k}$', linewidth=2.5, markersize=8)
+    ax3a.semilogy(k_vals, quantum_mem, 'bs-', label='Quantum: $2k+1$', linewidth=2.5, markersize=8)
+    ax3a.fill_between(k_vals, quantum_mem, classical_mem, alpha=0.15, color='green',
+                       label='Exponential gap')
+    ax3a.set_xlabel('k (qubits per dimension)', fontsize=12)
+    ax3a.set_ylabel('Memory units', fontsize=12)
+    ax3a.set_title('Space: Classical vs Quantum', fontsize=13)
+    ax3a.legend(fontsize=10)
     ax3a.grid(True, alpha=0.3)
+    ax3a.set_xticks(k_vals)
+    ax3a.set_xticklabels([f'{k}\n({2**k}x{2**k})' for k in k_vals], fontsize=8)
 
-    # Classical complexity O(n^2) vs Quantum O(1) per patch
-    n_values = np.array(img_sides)
-    classical_ops = n_values ** 2  # O(n^2) for gradient-based
-    # Quantum: encoding O(n^2) + detection O(1) -- but per-patch it's O(1) detection
-    quantum_detection = np.ones_like(n_values)  # O(1) per patch
-
-    ax3b.plot(n_values, classical_ops, 'ro-', label='Classical edge detection O(n^2)', linewidth=2)
-    ax3b.plot(n_values, quantum_detection, 'bs-', label='QHED detection per patch O(1)', linewidth=2)
-    ax3b.set_xlabel('Image side length')
-    ax3b.set_ylabel('Operations')
-    ax3b.set_title('Edge Detection Complexity (per operation)')
+    ax3b.bar(k_vals, compression, color='#4CAF50', edgecolor='black', linewidth=0.5)
+    for ki, cr in zip(k_vals, compression):
+        ax3b.text(ki, cr * 1.1, f'{cr:.0f}x', ha='center', va='bottom', fontsize=8, fontweight='bold')
+    ax3b.set_xlabel('k (qubits per dimension)', fontsize=12)
+    ax3b.set_ylabel('Compression ratio ($p^2 / (2k+1)$)', fontsize=12)
+    ax3b.set_title('Memory Compression Ratio', fontsize=13)
     ax3b.set_yscale('log')
-    ax3b.set_xscale('log', base=2)
-    ax3b.legend()
-    ax3b.grid(True, alpha=0.3)
+    ax3b.grid(True, alpha=0.3, axis='y')
+    ax3b.set_xticks(k_vals)
+    ax3b.set_xticklabels([f'k={k}\np={2**k}' for k in k_vals], fontsize=8)
 
     plt.tight_layout()
     st.pyplot(fig3)
     plt.close(fig3)
 
-    st.header("NISQ Era Context")
-    st.markdown("""
-    In the current NISQ (Noisy Intermediate-Scale Quantum) era:
+    # ------------------------------------------------------------------
+    # Section 7: Patch count analysis
+    # ------------------------------------------------------------------
+    st.header("7. Patch Count: BR vs No-BR")
+    st.markdown(r"""
+    Boundary Restoration increases the number of patches due to overlap.
+    The additional cost is **polynomial** (not exponential):
 
-    - **Available qubits:** IBM's most advanced processors have ~1000+ qubits, but with significant noise
-    - **Practical qubits:** For reliable computation, effectively far fewer qubits are usable
-    - **QHED-BR significance:** Even with just 5-13 qubits, we can process arbitrarily large images
-      by using the patch-based approach with boundary restoration
-    - **Polynomial overhead:** The boundary restoration only adds polynomial (not exponential) computation
+    $$\frac{Q_{\text{BR}}}{Q_{\text{no-BR}}} = \left(\frac{p}{p-2}\right)^2 \xrightarrow{p \to \infty} 1$$
+    """)
 
-    This makes QHED-BR a **practical quantum algorithm for the NISQ era** -- it demonstrates
-    quantum advantage in memory efficiency while working within the constraints of current hardware.
+    col1, col2 = st.columns(2)
+    sizes_plot = [2**i for i in range(4, 11)]
+
+    with col1:
+        fig4a, ax4a = plt.subplots(figsize=(8, 5))
+        for qb in [3, 4, 5, 6]:
+            patch = 2 ** qb
+            br_stride = max(patch - 2, 1)
+            patches_br = [int(np.ceil((s - 2) / br_stride)) ** 2 if s >= patch else 1 for s in sizes_plot]
+            ax4a.plot(sizes_plot, patches_br, 'o-', label=f'k={qb} ({patch}x{patch})', linewidth=2)
+
+        ax4a.set_xlabel('Image side length N', fontsize=12)
+        ax4a.set_ylabel('Number of patches (Q)', fontsize=12)
+        ax4a.set_title('Patches Required with BR', fontsize=13)
+        ax4a.legend(fontsize=10)
+        ax4a.set_yscale('log')
+        ax4a.set_xscale('log', base=2)
+        ax4a.grid(True, alpha=0.3)
+        st.pyplot(fig4a)
+        plt.close(fig4a)
+
+    with col2:
+        fig4b, ax4b = plt.subplots(figsize=(8, 5))
+        for qb in [3, 4, 5]:
+            patch = 2 ** qb
+            patches_no = [int(np.ceil(s / patch)) ** 2 if s >= patch else 1 for s in sizes_plot]
+            br_stride = max(patch - 2, 1)
+            patches_br = [int(np.ceil((s - 2) / br_stride)) ** 2 if s >= patch else 1 for s in sizes_plot]
+            ax4b.plot(sizes_plot, patches_no, 's--', label=f'k={qb} w/o BR', alpha=0.7)
+            ax4b.plot(sizes_plot, patches_br, 'o-', label=f'k={qb} w/ BR', linewidth=2)
+
+        ax4b.set_xlabel('Image side length N', fontsize=12)
+        ax4b.set_ylabel('Number of patches (Q)', fontsize=12)
+        ax4b.set_title('BR vs No-BR Patch Count', fontsize=13)
+        ax4b.legend(fontsize=9)
+        ax4b.set_yscale('log')
+        ax4b.set_xscale('log', base=2)
+        ax4b.grid(True, alpha=0.3)
+        st.pyplot(fig4b)
+        plt.close(fig4b)
+
+    # ------------------------------------------------------------------
+    # Section 8: Crossover analysis
+    # ------------------------------------------------------------------
+    st.header("8. Crossover Analysis: When Does Quantum Beat Classical?")
+    st.markdown(r"""
+    We identify two distinct crossover boundaries:
+
+    ---
+
+    ### Crossover A: Detection-Only Regime
+
+    For quantum detection to beat classical edge detection:
+
+    $$Q_{\text{BR}} \cdot O(\log p^2) < c_{\text{cl}} \cdot N^2$$
+
+    Since $Q_{\text{BR}} \approx N^2/(p-2)^2$:
+
+    $$\frac{N^2 \cdot \log p^2}{(p-2)^2} < c_{\text{cl}} \cdot N^2
+    \implies \frac{\log p^2}{(p-2)^2} < c_{\text{cl}}$$
+
+    For Sobel ($c_{\text{cl}} \approx 38$):
+    - At $p = 4$ ($k=2$): $\log_2 16 / 4 = 1.0 < 38$ **-- satisfied**
+
+    **Conclusion:** In the detection-only regime, QHED is advantageous for **all practical
+    patch sizes** ($p \geq 4$). The advantage grows as $\Theta(p^2 / \log p)$.
+
+    ---
+
+    ### Crossover B: End-to-End Regime
+
+    For the full pipeline including encoding:
+
+    $$Q_{\text{BR}} \cdot c_q' \cdot p^2 < c_{\text{cl}} \cdot N^2$$
+
+    $$\frac{c_q' \cdot p^2}{(p-2)^2} < c_{\text{cl}}
+    \implies c_q' < c_{\text{cl}} \cdot \left(\frac{p-2}{p}\right)^2$$
+
+    For large $p$, this becomes $c_q' < c_{\text{cl}}$. The crossover depends entirely
+    on the **hardware constant ratio** $c_q' / c_{\text{cl}}$:
+
+    - **Current NISQ era:** A single quantum gate takes ~10-1000 ns, while a classical FLOP
+      takes ~0.1-1 ns. So $c_q' / c_{\text{cl}} \approx 10$--$10^4$. **Classical wins.**
+    - **Fault-tolerant era:** With error-corrected qubits and faster gates,
+      $c_q'$ is expected to approach $c_{\text{cl}}$. **Quantum becomes competitive.**
+    - **With QRAM:** If QRAM provides $O(\log p^2)$ encoding (speculative), the end-to-end
+      complexity drops to $Q \cdot O(\log p^2)$, recovering Case 1's advantage.
+
+    ---
+
+    ### Summary of Advantages
+
+    | Dimension | Classical | QHED | Advantage |
+    |-----------|----------|------|-----------|
+    | **Time (detection only)** | $O(N^2)$ | $O\!\left(\frac{N^2 \log p}{p^2}\right)$ | Quantum: $\Theta(p^2/\log p)$ speedup |
+    | **Time (end-to-end)** | $O(N^2)$ | $O(N^2)$ | **Same asymptotic** -- hardware-dependent |
+    | **Space** | $O(N^2)$ or $O(p^2)$/patch | $O(\log p)$ qubits | Quantum: **exponential** advantage |
+    | **BR overhead** | N/A | $(p/(p-2))^2 \to 1$ | Polynomial, vanishes for large $p$ |
+    """)
+
+    # --- Graph: Crossover ---
+    st.subheader("Crossover Visualization")
+
+    fig5, (ax5a, ax5b) = plt.subplots(1, 2, figsize=(14, 5.5))
+
+    # Left: End-to-end break-even as function of c_q'/c_cl ratio
+    k_cross = np.arange(2, 9)
+    p_cross = 2.0 ** k_cross
+    max_cq_ratio = c_cl * ((p_cross - 2) / p_cross) ** 2  # max c_q' for quantum to win
+
+    ax5a.bar(k_cross, max_cq_ratio, color='#2196F3', edgecolor='black', linewidth=0.5)
+    ax5a.axhline(y=1, color='red', linestyle='--', linewidth=2, label="$c_q'/c_{cl} = 1$ (equal speed)")
+    ax5a.axhline(y=0.1, color='orange', linestyle=':', linewidth=2, label="$c_q'/c_{cl} = 0.1$ (10x faster gates)")
+    for ki, mv in zip(k_cross, max_cq_ratio):
+        ax5a.text(ki, mv + 0.5, f'{mv:.1f}', ha='center', va='bottom', fontsize=9)
+    ax5a.set_xlabel('k (qubits per dimension)', fontsize=12)
+    ax5a.set_ylabel(r"Maximum $c_q'$ for quantum advantage", fontsize=12)
+    ax5a.set_title('End-to-End Break-Even Threshold\n(vs Sobel, $c_{cl}=38$)', fontsize=12)
+    ax5a.set_xticks(k_cross)
+    ax5a.set_xticklabels([f'k={k}\np={2**k}' for k in k_cross], fontsize=9)
+    ax5a.legend(fontsize=9)
+    ax5a.grid(True, alpha=0.3, axis='y')
+
+    # Right: Three regimes on one plot
+    N_range = np.logspace(np.log10(16), np.log10(4096), 100)
+    k_example = 4  # p=16
+    p_ex = 16
+    q_ex = 2 * k_example + 1
+    stride_ex = p_ex - 2
+
+    Q_br_ex = np.ceil((N_range - 2) / stride_ex) ** 2
+    detect_only = Q_br_ex * q_ex
+    e2e_unit = Q_br_ex * 2 * p_ex ** 2  # c_q'=1 (unit gate cost)
+    classical_sobel = 38 * N_range ** 2
+
+    ax5b.loglog(N_range, classical_sobel, 'k-', label='Classical (Sobel)', linewidth=2.5)
+    ax5b.loglog(N_range, detect_only, 'b-', label='QHED: detection only', linewidth=2)
+    ax5b.loglog(N_range, e2e_unit, 'r--', label='QHED: end-to-end ($c_q\'=1$)', linewidth=2)
+    ax5b.loglog(N_range, e2e_unit * 10, 'r:', label='QHED: end-to-end ($c_q\'=10$)', linewidth=2, alpha=0.7)
+
+    ax5b.fill_between(N_range, detect_only, classical_sobel, alpha=0.08, color='blue')
+    ax5b.set_xlabel('Image side length N', fontsize=12)
+    ax5b.set_ylabel('Total operations', fontsize=12)
+    ax5b.set_title(f'Three Regimes (k={k_example}, p={p_ex})', fontsize=13)
+    ax5b.legend(fontsize=9, loc='upper left')
+    ax5b.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    st.pyplot(fig5)
+    plt.close(fig5)
+
+    # ------------------------------------------------------------------
+    # Section 9: NISQ context
+    # ------------------------------------------------------------------
+    st.header("9. NISQ Era Context and Practical Implications")
+    st.markdown(r"""
+    **Current Status (NISQ Era):**
+
+    | Factor | Status | Impact |
+    |--------|--------|--------|
+    | Gate speed | ~10-1000 ns/gate | $c_q' \gg c_{\text{cl}}$: classical faster in wall-clock |
+    | Qubit count | ~100-1000 (noisy) | Limits patch size; BR makes small patches practical |
+    | Error rates | ~$10^{-3}$--$10^{-2}$ | Requires error mitigation; limits circuit depth |
+    | QRAM | Not yet available | Encoding bottleneck remains $O(p^2)$ |
+
+    **Where QHED-BR shines today:**
+
+    1. **Space efficiency**: Even with just **5-13 qubits**, arbitrarily large images can be processed.
+       This is the most unambiguous quantum advantage -- exponential memory compression.
+
+    2. **Polynomial BR overhead**: Boundary restoration adds only a factor of $(p/(p-2))^2$
+       additional patches, which converges rapidly to 1.
+
+    3. **NISQ-friendly circuits**: QHED circuits are shallow (depth $O(\log p)$ for detection),
+       making them resilient to decoherence.
+
+    **Future outlook:**
+
+    - **Fault-tolerant quantum computers** ($c_q' \to c_{\text{cl}}$): End-to-end QHED matches classical.
+    - **QRAM availability**: Encoding drops to $O(\log p^2)$, unlocking full detection-only speedup.
+    - **Larger qubit counts**: Bigger patches ($p \geq 64$) yield $>$300x detection speedup.
+
+    The fundamental insight of QHED-BR is that it provides a **practical, NISQ-compatible framework**
+    for quantum image processing that offers immediate space advantages and positions itself to
+    capture time advantages as quantum hardware improves.
     """)
 
     st.markdown("---")
     st.markdown("""
     **References:**
+    - Shende, Bullock & Markov, "Synthesis of quantum logic circuits," IEEE Trans. CAD, 2006
+    - Draper, "Addition on a quantum computer," arXiv:quant-ph/0008033, 2000
+    - Cuccaro et al., "A new quantum ripple-carry addition circuit," arXiv:quant-ph/0410184, 2004
+    - Yao et al., "Quantum image processing and its application to edge detection," Physical Review X 7.3, 2017
     - [Qiskit - Open-source quantum computing SDK](https://qiskit.org/)
     - [IBM Quantum Computing](https://quantum-computing.ibm.com/)
-    - Yao et al., "Quantum image processing and its application to edge detection," Physical Review X 7.3 (2017)
     """)
