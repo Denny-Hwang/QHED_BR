@@ -1,0 +1,7 @@
+qiskit>=2.0
+qiskit-aer>=0.15
+numpy
+matplotlib
+Pillow
+opencv-python-headless
+streamlit>=1.30
