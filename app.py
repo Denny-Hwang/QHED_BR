@@ -694,7 +694,8 @@ elif page == "4. Complexity Comparison":
         for qb in qubits_options:
             patch = 2 ** qb
             patches_no_br = [(s // patch) ** 2 if s >= patch else 1 for s in sizes]
-            patches_br = [((s - 1) // (patch - 1)) ** 2 if s >= patch and patch > 1 else s**2 for s in sizes]
+            br_stride = max(patch - 2, 1)
+            patches_br = [((s - 1) // br_stride + 1) ** 2 if s >= patch else 1 for s in sizes]
             ax.plot(sizes, patches_br, 'o-', label=f'{qb} qb/dim ({patch}x{patch} patch, BR)', linewidth=2)
 
         ax.set_xlabel('Image side length (pixels)', fontsize=12)
@@ -712,7 +713,8 @@ elif page == "4. Complexity Comparison":
         for qb in [2, 3, 4]:
             patch = 2 ** qb
             patches_no_br = [(s // patch) ** 2 if s >= patch else 1 for s in sizes]
-            patches_br = [((s - 1) // (patch - 1)) ** 2 if s >= patch and patch > 1 else s**2 for s in sizes]
+            br_stride = max(patch - 2, 1)
+            patches_br = [((s - 1) // br_stride + 1) ** 2 if s >= patch else 1 for s in sizes]
             ax2.plot(sizes, patches_no_br, 's--', label=f'{qb} qb w/o BR', alpha=0.7)
             ax2.plot(sizes, patches_br, 'o-', label=f'{qb} qb w/ BR', linewidth=2)
 

@@ -217,7 +217,11 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
     h, w = input_img.shape
 
     if stride_mode == 'with_restoration':
-        stride = width_patch - 1  # overlap by 1 pixel row/col
+        if patch_boundary_zero:
+            stride = width_patch - 2  # overlap by 2 pixels so zeroed boundaries are covered by interior of adjacent patch
+        else:
+            stride = width_patch - 1  # overlap by 1 pixel row/col
+        stride = max(stride, 1)  # safety: stride must be at least 1
     else:
         stride = width_patch  # no overlap
 
