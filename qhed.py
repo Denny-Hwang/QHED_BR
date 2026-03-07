@@ -3,9 +3,10 @@
 Compatible with Qiskit 2.x and qiskit-aer.
 """
 
+import gc
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
-from qiskit.quantum_info import Statevector
+from qiskit.quantum_info import Statevector, Operator
 
 from basicFunctions import amplitude_encode, boundary_zero
 
@@ -14,7 +15,7 @@ from basicFunctions import amplitude_encode, boundary_zero
 # Core QHED using statevector simulation
 # ---------------------------------------------------------------------------
 
-def QHED(image, thr_ratio=0.7):
+def QHED(image, thr_ratio=0.7, D2n_1=None):
     """Run QHED on a small square image patch using statevector simulation.
 
     Parameters
@@ -23,6 +24,8 @@ def QHED(image, thr_ratio=0.7):
         2D grayscale image (values in [0, 1]), shape must be power-of-2 square.
     thr_ratio : float
         Threshold ratio for binarising edge amplitudes.
+    D2n_1 : np.ndarray or Operator, optional
+        Precomputed permutation unitary. If None, computed internally.
 
     Returns
     -------
@@ -49,8 +52,9 @@ def QHED(image, thr_ratio=0.7):
     if image_norm_v is not None and len(image_norm_v) < target_len:
         image_norm_v = np.pad(image_norm_v, (0, target_len - len(image_norm_v)))
 
-    # Amplitude permutation unitary (cyclic shift)
-    D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
+    # Amplitude permutation unitary (cyclic shift) — reuse if provided
+    if D2n_1 is None:
+        D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
 
     results = {}
     for label, norm_data in [('h', image_norm_h), ('v', image_norm_v)]:
@@ -258,10 +262,18 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
     total_patches = len(row_positions) * len(col_positions)
     current = 0
 
+    # Precompute the permutation unitary once for all patches
+    data_qb = int(np.ceil(np.log2(width_patch * width_patch)))
+    total_qb = data_qb + 1
+    D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
+
+    # GC interval: free memory every N patches
+    gc_interval = max(10, total_patches // 20)
+
     for r in row_positions:
         for c in col_positions:
             patch = input_img[r:r + width_patch, c:c + width_patch]
-            edge_result = QHED(patch, thr_ratio=thr_ratio)
+            edge_result = QHED(patch, thr_ratio=thr_ratio, D2n_1=D2n_1)
 
             if patch_boundary_zero:
                 edge_result = boundary_zero(edge_result)
@@ -273,9 +285,17 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
             if progress_callback:
                 progress_callback(current, total_patches)
 
+            # Periodic garbage collection to keep memory usage stable
+            if current % gc_interval == 0:
+                gc.collect()
+
     # Average over patches where the pixel was interior (not boundary-zeroed).
     # Pixels with count=0 are image-border pixels (always boundary) -- leave as 0.
     count_img[count_img == 0] = 1
     result_img = (result_img / count_img >= 0.5).astype(np.uint8)
+
+    # Final cleanup
+    del D2n_1
+    gc.collect()
 
     return result_img, total_patches
