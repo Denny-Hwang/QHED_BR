@@ -4,7 +4,11 @@ Interactive Streamlit Application
 """
 
 import io
+import os
+import sys
 import time
+import traceback
+
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -12,24 +16,35 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from PIL import Image
 
-from basicFunctions import load_image_from_array, amplitude_encode
-from qhed import QHED, build_qhed_circuit, edge_detection_stride
-from classical_ed_methods import (
-    sobel_edge_detection,
-    prewitt_edge_detection,
-    laplacian_edge_detection,
-    canny_edge_detection,
-)
-
 # ---------------------------------------------------------------------------
-# Page config
+# Page config — MUST be the first Streamlit command
 # ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="QHED-BR: Quantum Edge Detection",
-    page_icon="",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ---------------------------------------------------------------------------
+# Import project modules with error handling
+# ---------------------------------------------------------------------------
+try:
+    from basicFunctions import load_image_from_array, amplitude_encode
+    from qhed import QHED, build_qhed_circuit, edge_detection_stride
+    from classical_ed_methods import (
+        sobel_edge_detection,
+        prewitt_edge_detection,
+        laplacian_edge_detection,
+        canny_edge_detection,
+    )
+except Exception as e:
+    st.error(
+        f"Failed to import required modules.\n\n"
+        f"**Python {sys.version}**\n\n"
+        f"```\n{traceback.format_exc()}\n```"
+    )
+    st.stop()
 
 # ---------------------------------------------------------------------------
 # Helper: convert matplotlib figure to bytes for download
@@ -1388,6 +1403,7 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
         try:
             from qiskit_ibm_runtime import SamplerV2 as Sampler
             from qiskit import transpile as qk_transpile
+            from qiskit import QuantumCircuit
         except ImportError:
             st.error("qiskit-ibm-runtime is required. Install with: pip install qiskit-ibm-runtime")
             st.stop()
@@ -1443,7 +1459,6 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
 
                     D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
 
-                    from qiskit import QuantumCircuit
                     qc = QuantumCircuit(total_qb)
                     qc.initialize(norm.tolist(), range(1, total_qb))
                     qc.h(0)
@@ -1482,8 +1497,8 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
                 edge_binary = (combined > thr).astype(np.float64)
 
                 # Boundary zero
-                from basicFunctions import boundary_zero
-                edge_binary = boundary_zero(edge_binary)
+                from basicFunctions import boundary_zero as bz
+                edge_binary = bz(edge_binary)
 
                 result_img[r:r + width_patch, c:c + width_patch] += edge_binary
                 count_img[r:r + width_patch, c:c + width_patch] += interior_mask

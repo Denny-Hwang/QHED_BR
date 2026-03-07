@@ -6,7 +6,6 @@ Compatible with Qiskit 2.x and qiskit-aer.
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
 from qiskit.quantum_info import Statevector
-from qiskit_aer import AerSimulator
 
 from basicFunctions import amplitude_encode, boundary_zero
 
@@ -147,6 +146,7 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000):
         image_norm_v = np.pad(image_norm_v, (0, target_len - len(image_norm_v)))
 
     D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
+    from qiskit_aer import AerSimulator
     backend = AerSimulator()
 
     results = {}
