@@ -376,7 +376,7 @@ elif page == "3. Interactive Edge Detection":
     with col_p1:
         img_size_exp = st.selectbox(
             "Resize image to (2^n x 2^n)",
-            list(range(4, 10)),
+            list(range(4, 9)),
             index=2,
             format_func=lambda x: f"{2**x}x{2**x} ({2**(2*x):,} pixels)"
         )
@@ -401,9 +401,13 @@ elif page == "3. Interactive Edge Detection":
     with col_p3:
         thr_ratio = st.slider("Threshold ratio", 0.1, 2.0, 0.7, 0.1)
 
+    # Memory and patch count warnings
+    est_patch_size = 2 ** patch_qb
+    est_total_qb = 2 * patch_qb + 1
+    est_stride = max(est_patch_size - 2, 1)
+    est_patches = int(np.ceil((img_size - 2) / est_stride)) ** 2 if img_size > est_patch_size else 1
+
     if patch_qb >= 7:
-        est_patch_size = 2 ** patch_qb
-        est_total_qb = 2 * patch_qb + 1
         st.error(
             f"Patch size {est_patch_size}x{est_patch_size} ({est_total_qb} qubits): "
             f"statevector requires a 2^{est_total_qb} = {2**est_total_qb:,} dimensional vector. "
@@ -411,12 +415,17 @@ elif page == "3. Interactive Edge Detection":
             f"This will likely run out of memory."
         )
     elif patch_qb >= 6:
-        est_patch_size = 2 ** patch_qb
-        est_total_qb = 2 * patch_qb + 1
         st.warning(
             f"Patch size {est_patch_size}x{est_patch_size} ({est_total_qb} qubits): "
             f"statevector simulation operates on a 2^{est_total_qb} = {2**est_total_qb:,} "
             f"dimensional vector. This may be slow for large images."
+        )
+
+    if est_patches > 500:
+        st.warning(
+            f"~{est_patches} patches estimated with current settings. "
+            f"This may take a long time and use significant memory. "
+            f"Consider increasing patch qubits or reducing image size."
         )
 
     col_p4, col_p5 = st.columns(2)
