@@ -9,11 +9,10 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
 import streamlit as st
 from PIL import Image
 
-from basicFunctions import load_image, load_image_from_array, amplitude_encode
+from basicFunctions import load_image_from_array, amplitude_encode
 from qhed import QHED, build_qhed_circuit, edge_detection_stride
 from classical_ed_methods import (
     sobel_edge_detection,
@@ -450,19 +449,23 @@ elif page == "3. Interactive Edge Detection":
             progress_bar = st.progress(0, text="Processing patches...")
 
             def update_progress(current, total):
-                progress_bar.progress(current / total,
+                progress_bar.progress(min(current / total, 1.0),
                                       text=f"Processing patch {current}/{total}...")
 
-            start = time.time()
-            result, n_patches = edge_detection_stride(
-                gray,
-                width_qb=patch_qb,
-                thr_ratio=thr_ratio,
-                stride_mode=stride_mode,
-                patch_boundary_zero=True,
-                progress_callback=update_progress,
-            )
-            elapsed = time.time() - start
+            try:
+                start = time.time()
+                result, n_patches = edge_detection_stride(
+                    gray,
+                    width_qb=patch_qb,
+                    thr_ratio=thr_ratio,
+                    stride_mode=stride_mode,
+                    patch_boundary_zero=True,
+                    progress_callback=update_progress,
+                )
+                elapsed = time.time() - start
+            except Exception as e:
+                st.error(f"QHED execution failed: {e}")
+                st.stop()
 
             progress_bar.progress(1.0, text="Done!")
 
@@ -497,25 +500,29 @@ elif page == "3. Interactive Edge Detection":
                 st.markdown("**Original**")
                 st.image(gray, clamp=True, width=300)
 
-            progress1 = st.progress(0, text="Without restoration...")
-            start1 = time.time()
-            result_no_br, n1 = edge_detection_stride(
-                gray, width_qb=patch_qb, thr_ratio=thr_ratio,
-                stride_mode='without_restoration',
-                progress_callback=lambda c, t: progress1.progress(c/t, text=f"No BR: {c}/{t}")
-            )
-            time_no_br = time.time() - start1
-            progress1.progress(1.0, text="Done (without restoration)")
+            try:
+                progress1 = st.progress(0, text="Without restoration...")
+                start1 = time.time()
+                result_no_br, n1 = edge_detection_stride(
+                    gray, width_qb=patch_qb, thr_ratio=thr_ratio,
+                    stride_mode='without_restoration',
+                    progress_callback=lambda c, t: progress1.progress(min(c/t, 1.0), text=f"No BR: {c}/{t}")
+                )
+                time_no_br = time.time() - start1
+                progress1.progress(1.0, text="Done (without restoration)")
 
-            progress2 = st.progress(0, text="With restoration...")
-            start2 = time.time()
-            result_br, n2 = edge_detection_stride(
-                gray, width_qb=patch_qb, thr_ratio=thr_ratio,
-                stride_mode='with_restoration',
-                progress_callback=lambda c, t: progress2.progress(c/t, text=f"BR: {c}/{t}")
-            )
-            time_br = time.time() - start2
-            progress2.progress(1.0, text="Done (with restoration)")
+                progress2 = st.progress(0, text="With restoration...")
+                start2 = time.time()
+                result_br, n2 = edge_detection_stride(
+                    gray, width_qb=patch_qb, thr_ratio=thr_ratio,
+                    stride_mode='with_restoration',
+                    progress_callback=lambda c, t: progress2.progress(min(c/t, 1.0), text=f"BR: {c}/{t}")
+                )
+                time_br = time.time() - start2
+                progress2.progress(1.0, text="Done (with restoration)")
+            except Exception as e:
+                st.error(f"QHED execution failed: {e}")
+                st.stop()
 
             with col_b:
                 st.markdown(f"**Without Restoration** ({n1} patches, {time_no_br:.2f}s)")
@@ -623,16 +630,20 @@ elif page == "3. Interactive Edge Detection":
             all_times = {}
 
             # QHED
-            progress = st.progress(0, text="Running QHED...")
-            start = time.time()
-            qhed_res, n_q = edge_detection_stride(
-                gray, width_qb=patch_qb, thr_ratio=thr_ratio,
-                stride_mode=stride_mode,
-                progress_callback=lambda c, t: progress.progress(c/t, text=f"QHED: {c}/{t}")
-            )
-            all_results['QHED'] = qhed_res.astype(float)
-            all_times['QHED'] = time.time() - start
-            progress.progress(1.0, text="QHED done")
+            try:
+                progress = st.progress(0, text="Running QHED...")
+                start = time.time()
+                qhed_res, n_q = edge_detection_stride(
+                    gray, width_qb=patch_qb, thr_ratio=thr_ratio,
+                    stride_mode=stride_mode,
+                    progress_callback=lambda c, t: progress.progress(min(c/t, 1.0), text=f"QHED: {c}/{t}")
+                )
+                all_results['QHED'] = qhed_res.astype(float)
+                all_times['QHED'] = time.time() - start
+                progress.progress(1.0, text="QHED done")
+            except Exception as e:
+                st.error(f"QHED execution failed: {e}")
+                st.stop()
 
             # Classical
             for name, func, kwargs in [
@@ -1353,6 +1364,10 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
 
     hw_patch_size = 2 ** hw_patch_qb
     hw_total_qb = 2 * hw_patch_qb + 1
+
+    if hw_patch_size > hw_size:
+        st.error(f"Patch size {hw_patch_size}x{hw_patch_size} exceeds image size {hw_size}x{hw_size}. Reduce patch qubits or increase image size.")
+        st.stop()
 
     # Estimate patch count
     hw_stride = max(hw_patch_size - 2, 1)

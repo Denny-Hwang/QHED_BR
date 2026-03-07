@@ -216,6 +216,12 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
     width_patch = 2 ** width_qb
     h, w = input_img.shape
 
+    if width_patch > h or width_patch > w:
+        raise ValueError(
+            f"Patch size {width_patch}x{width_patch} exceeds image size {h}x{w}. "
+            f"Use fewer qubits (width_qb < {width_qb}) or a larger image."
+        )
+
     if stride_mode == 'with_restoration':
         if patch_boundary_zero:
             stride = width_patch - 2  # overlap by 2 pixels so zeroed boundaries are covered by interior of adjacent patch
@@ -227,10 +233,14 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
 
     # Compute patch positions
     row_positions = list(range(0, h - width_patch + 1, stride))
-    if row_positions[-1] + width_patch < h:
+    if not row_positions:
+        row_positions = [0]
+    elif row_positions[-1] + width_patch < h:
         row_positions.append(h - width_patch)
     col_positions = list(range(0, w - width_patch + 1, stride))
-    if col_positions[-1] + width_patch < w:
+    if not col_positions:
+        col_positions = [0]
+    elif col_positions[-1] + width_patch < w:
         col_positions.append(w - width_patch)
 
     result_img = np.zeros((h, w), dtype=np.float64)
