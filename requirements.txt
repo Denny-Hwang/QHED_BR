@@ -1,5 +1,6 @@
 qiskit>=2.0
 qiskit-aer>=0.15
+qiskit-ibm-runtime>=0.30
 numpy
 matplotlib
 Pillow
