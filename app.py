@@ -1245,12 +1245,17 @@ Two connection channels are supported. Fill in **one** set of credentials:
         st.session_state['ibm_service'] = None
         st.session_state['ibm_backend'] = None
         st.session_state['ibm_backend_name'] = None
+        st.session_state['ibm_backend_num_qubits'] = None
         st.session_state['ibm_hw_result'] = None
+        st.session_state['ibm_job_ids'] = []
+        st.session_state['ibm_running'] = False
+        st.session_state['ibm_cancel_requested'] = False
 
     if st.button("Connect to IBM Quantum", type="primary"):
         st.session_state['ibm_service'] = None
         st.session_state['ibm_backend'] = None
         st.session_state['ibm_backend_name'] = None
+        st.session_state['ibm_backend_num_qubits'] = None
 
         connection_attempts = []
 
@@ -1300,6 +1305,7 @@ Two connection channels are supported. Fill in **one** set of credentials:
                         if status.operational:
                             st.session_state['ibm_backend'] = be
                             st.session_state['ibm_backend_name'] = name
+                            st.session_state['ibm_backend_num_qubits'] = be.num_qubits
                             st.success(
                                 f"Backend: **{name}** ({be.num_qubits}Q, "
                                 f"pending jobs: {status.pending_jobs})"
@@ -1315,6 +1321,7 @@ Two connection channels are supported. Fill in **one** set of credentials:
                         be = svc.least_busy(operational=True, min_num_qubits=5)
                         st.session_state['ibm_backend'] = be
                         st.session_state['ibm_backend_name'] = be.name
+                        st.session_state['ibm_backend_num_qubits'] = be.num_qubits
                         status = be.status()
                         st.info(
                             f"No preferred backend available. Using least-busy: "
@@ -1323,9 +1330,23 @@ Two connection channels are supported. Fill in **one** set of credentials:
                     except Exception as e:
                         st.error(f"No operational backend found: {e}")
 
-    # Show connection status
-    if st.session_state.get('ibm_backend_name'):
-        st.info(f"Currently connected to: **{st.session_state['ibm_backend_name']}**")
+    # Show connection status with queue info
+    if st.session_state.get('ibm_backend'):
+        be = st.session_state['ibm_backend']
+        be_name = st.session_state['ibm_backend_name']
+        be_nq = st.session_state.get('ibm_backend_num_qubits', '?')
+        try:
+            status = be.status()
+            pending = status.pending_jobs
+            operational = status.operational
+            status_icon = "🟢" if operational else "🔴"
+            queue_msg = f"**{pending} jobs** in queue" if pending > 0 else "**No queue** (idle)"
+            st.info(
+                f"{status_icon} Connected to: **{be_name}** "
+                f"({be_nq} qubits) | {queue_msg}"
+            )
+        except Exception:
+            st.info(f"Connected to: **{be_name}** ({be_nq} qubits)")
 
     st.markdown("---")
 
@@ -1375,16 +1396,17 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
     # Parameters
     col_hw1, col_hw2, col_hw3 = st.columns(3)
     with col_hw1:
-        hw_size_exp = st.selectbox("Resize to", [4, 5, 6], index=0,
+        hw_size_options = [4, 5, 6, 7, 8]  # 16 to 256
+        hw_size_exp = st.selectbox("Resize to", hw_size_options, index=1,
                                     format_func=lambda x: f"{2**x}x{2**x}",
                                     key="hw_size")
         hw_size = 2 ** hw_size_exp
     with col_hw2:
-        hw_patch_qb = st.selectbox("Patch qubits/dim", [3, 4], index=0,
+        hw_patch_qb = st.selectbox("Patch qubits/dim", [3, 4, 5], index=0,
                                     format_func=lambda x: f"k={x} ({2**x}x{2**x} patch, {2*x+1} qubits)",
                                     key="hw_patch")
     with col_hw3:
-        hw_shots = st.selectbox("Shots", [1024, 4096, 8192], index=1, key="hw_shots")
+        hw_shots = st.selectbox("Shots", [1024, 4096, 8192, 16384], index=1, key="hw_shots")
 
     hw_patch_size = 2 ** hw_patch_qb
     hw_total_qb = 2 * hw_patch_qb + 1
@@ -1393,22 +1415,95 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
         st.error(f"Patch size {hw_patch_size}x{hw_patch_size} exceeds image size {hw_size}x{hw_size}. Reduce patch qubits or increase image size.")
         st.stop()
 
+    # Check qubit count vs backend capacity
+    be_nq = st.session_state.get('ibm_backend_num_qubits')
+    if be_nq and hw_total_qb > be_nq:
+        st.error(
+            f"Circuit requires {hw_total_qb} qubits but **{st.session_state['ibm_backend_name']}** "
+            f"has only {be_nq} qubits. Reduce patch size."
+        )
+        st.stop()
+
     # Estimate patch count
     hw_stride = max(hw_patch_size - 2, 1)
     hw_est_patches = int(np.ceil((hw_size - 2) / hw_stride)) ** 2
+    # Each patch submits 2 circuits (H-scan and V-scan)
+    hw_total_circuits = hw_est_patches * 2
 
-    st.markdown(
-        f"**Estimated:** {hw_est_patches} patches, {hw_total_qb} qubits/patch, "
-        f"{hw_shots} shots/circuit on **{st.session_state['ibm_backend_name']}**"
-    )
+    # ── Cost & Time Estimation ──
+    # Rough estimates based on IBM open-plan pricing and typical QPU times:
+    # - QPU time per circuit ≈ shots * gate_time_per_shot
+    # - For small circuits (7-11 qubits): ~0.5-3s per circuit execution
+    # - IBM open plan: ~$1.60 per second of QPU time (as of 2024-2025)
+    # - Free tier: 10 min/month of QPU time
+    est_seconds_per_circuit = 0.5 + (hw_shots / 10000) * 1.5  # rough heuristic
+    est_total_qpu_seconds = hw_total_circuits * est_seconds_per_circuit
+    est_total_qpu_minutes = est_total_qpu_seconds / 60
+    est_cost_usd = est_total_qpu_seconds * 1.60  # open-plan rate
 
-    if hw_est_patches > 25:
-        st.warning(
-            f"{hw_est_patches} patches will submit many jobs. "
-            f"Consider reducing image size or increasing patch size."
+    # Wall-clock includes queue wait; estimate ~5-30s overhead per job submission
+    est_wall_seconds = hw_total_circuits * (est_seconds_per_circuit + 5)
+    est_wall_minutes = est_wall_seconds / 60
+
+    st.markdown("---")
+    st.subheader("Estimated Cost & Time")
+
+    est_col1, est_col2, est_col3 = st.columns(3)
+    with est_col1:
+        st.metric("Total circuits", f"{hw_total_circuits}")
+        st.caption(f"{hw_est_patches} patches x 2 scans (H+V)")
+    with est_col2:
+        if est_total_qpu_minutes < 1:
+            st.metric("Est. QPU time", f"{est_total_qpu_seconds:.0f}s")
+        else:
+            st.metric("Est. QPU time", f"{est_total_qpu_minutes:.1f} min")
+        st.caption(f"{hw_total_qb} qubits/circuit, {hw_shots} shots each")
+    with est_col3:
+        if est_cost_usd < 0.01:
+            st.metric("Est. cost (open plan)", "< $0.01")
+        else:
+            st.metric("Est. cost (open plan)", f"${est_cost_usd:.2f}")
+        st.caption("Free tier: 10 min/month included")
+
+    if est_total_qpu_minutes > 1:
+        st.info(
+            f"Estimated wall-clock time: **{est_wall_minutes:.0f} min** "
+            f"(includes queue wait). You can cancel anytime."
         )
 
-    if st.button("Run on IBM Quantum Hardware", type="primary", key="hw_run"):
+    if hw_est_patches > 50:
+        st.warning(
+            f"{hw_est_patches} patches = {hw_total_circuits} circuits. "
+            f"This may be expensive. Consider reducing image size or increasing patch size."
+        )
+
+    # ── Run / Cancel buttons ──
+    btn_col1, btn_col2 = st.columns([1, 1])
+    with btn_col1:
+        run_clicked = st.button("Run on IBM Quantum Hardware", type="primary", key="hw_run")
+    with btn_col2:
+        cancel_clicked = st.button("Cancel Running Jobs", type="secondary", key="hw_cancel",
+                                    disabled=not st.session_state.get('ibm_running', False))
+
+    # Handle cancel
+    if cancel_clicked and st.session_state.get('ibm_job_ids'):
+        st.session_state['ibm_cancel_requested'] = True
+        cancelled_count = 0
+        with st.spinner("Cancelling jobs..."):
+            for job_id in st.session_state['ibm_job_ids']:
+                try:
+                    svc = st.session_state['ibm_service']
+                    job = svc.job(job_id)
+                    job.cancel()
+                    cancelled_count += 1
+                except Exception:
+                    pass
+        st.session_state['ibm_running'] = False
+        st.session_state['ibm_job_ids'] = []
+        st.warning(f"Cancelled {cancelled_count} job(s). Remaining jobs may still complete on IBM's side.")
+        st.rerun()
+
+    if run_clicked:
         try:
             from qiskit_ibm_runtime import SamplerV2 as Sampler
             from qiskit import transpile as qk_transpile
@@ -1416,6 +1511,10 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
         except ImportError:
             st.error("qiskit-ibm-runtime is required. Install with: pip install qiskit-ibm-runtime")
             st.stop()
+
+        st.session_state['ibm_running'] = True
+        st.session_state['ibm_job_ids'] = []
+        st.session_state['ibm_cancel_requested'] = False
 
         gray = load_image_from_array(hw_input_image, resize=(hw_size, hw_size))
         backend = st.session_state['ibm_backend']
@@ -1427,10 +1526,14 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
         h, w = gray.shape
 
         row_pos = list(range(0, h - width_patch + 1, stride))
-        if row_pos[-1] + width_patch < h:
+        if not row_pos:
+            row_pos = [0]
+        elif row_pos[-1] + width_patch < h:
             row_pos.append(h - width_patch)
         col_pos = list(range(0, w - width_patch + 1, stride))
-        if col_pos[-1] + width_patch < w:
+        if not col_pos:
+            col_pos = [0]
+        elif col_pos[-1] + width_patch < w:
             col_pos.append(w - width_patch)
 
         result_img = np.zeros((h, w), dtype=np.float64)
@@ -1447,12 +1550,23 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
         total_qb = data_qb + 1
         target_len = 2 ** data_qb
 
+        # Precompute D2n_1 once (avoids recreating per patch)
+        D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
+
         sampler = Sampler(mode=backend)
         current = 0
         start_time = time.time()
+        was_cancelled = False
 
         for r in row_pos:
+            if was_cancelled:
+                break
             for c in col_pos:
+                # Check for cancellation
+                if st.session_state.get('ibm_cancel_requested', False):
+                    was_cancelled = True
+                    break
+
                 patch = gray[r:r + width_patch, c:c + width_patch]
 
                 # Process H and V scans
@@ -1466,8 +1580,6 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
                     if len(norm) < target_len:
                         norm = np.pad(norm, (0, target_len - len(norm)))
 
-                    D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
-
                     qc = QuantumCircuit(total_qb)
                     qc.initialize(norm.tolist(), range(1, total_qb))
                     qc.h(0)
@@ -1479,6 +1591,12 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
 
                     try:
                         job = sampler.run([qc_t], shots=hw_shots)
+                        # Track job ID for cancellation
+                        try:
+                            jid = job.job_id()
+                            st.session_state['ibm_job_ids'].append(jid)
+                        except Exception:
+                            pass
                         result = job.result()
                         # Extract counts from SamplerV2
                         pub_result = result[0]
@@ -1516,20 +1634,31 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
                 elapsed = time.time() - start_time
                 eta = (elapsed / current) * (total_patches - current) if current > 0 else 0
                 progress.progress(
-                    current / total_patches,
+                    min(current / total_patches, 1.0),
                     text=f"Patch {current}/{total_patches} | Elapsed: {elapsed:.0f}s | ETA: {eta:.0f}s"
                 )
+
+        del D2n_1
+        st.session_state['ibm_running'] = False
+
+        if was_cancelled:
+            progress.progress(1.0, text=f"Cancelled after {current}/{total_patches} patches.")
+            st.warning(f"Execution cancelled. Completed {current}/{total_patches} patches.")
+            if current == 0:
+                st.stop()
 
         count_img[count_img == 0] = 1
         hw_result = (result_img / count_img >= 0.5).astype(np.uint8)
         total_time = time.time() - start_time
 
-        progress.progress(1.0, text=f"Done! Total: {total_time:.1f}s")
+        if not was_cancelled:
+            progress.progress(1.0, text=f"Done! Total: {total_time:.1f}s")
 
         st.session_state['ibm_hw_result'] = hw_result
         st.session_state['ibm_hw_gray'] = gray
         st.session_state['ibm_hw_time'] = total_time
-        st.session_state['ibm_hw_patches'] = total_patches
+        st.session_state['ibm_hw_patches'] = current
+        st.session_state['ibm_job_ids'] = []
 
     # Display results
     if st.session_state.get('ibm_hw_result') is not None:
