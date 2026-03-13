@@ -1,0 +1,41 @@
+%% QED Approaches Comparison - Mermaid Source
+%% Render: https://mermaid.live or `mmdc -i qed_approaches_comparison.mmd -o qed_approaches_comparison.svg`
+
+graph TD
+    subgraph Legend["Quantum Edge Detection Approaches"]
+        direction TB
+
+        subgraph QHED["QHED (Yao 2017)"]
+            A1["Encoding: Amplitude"]
+            A2["Edge: Gradient (1st deriv.)"]
+            A3["Circuit: Hadamard + D₂ₙ₋₁"]
+            A4["Qubits: 2k+1"]
+            A5["Detection: O(k)"]
+            A6["✅ Hardware demo (IBM)"]
+            A7["⚠️ Encoding cost O(n²)"]
+        end
+
+        subgraph NEQR["NEQR Edge (Zhang 2013)"]
+            B1["Encoding: Basis (NEQR)"]
+            B2["Edge: Gradient (comparator)"]
+            B3["Circuit: Quantum Comparator"]
+            B4["Qubits: 2n+q (~24)"]
+            B5["Detection: O(n²)"]
+            B6["❌ No hardware demo"]
+            B7["⚠️ High qubit count"]
+        end
+
+        subgraph QLAP["Q-Laplacian (Fan 2019)"]
+            C1["Encoding: Amplitude/FRQI"]
+            C2["Edge: Laplacian (2nd deriv.)"]
+            C3["Circuit: Shift Operator"]
+            C4["Qubits: 2k+q+a"]
+            C5["Detection: O(n²)"]
+            C6["❌ No hardware demo"]
+            C7["⚠️ Noise sensitivity"]
+        end
+    end
+
+    style QHED fill:#E8F4FD,stroke:#4A90D9
+    style NEQR fill:#F5F0FF,stroke:#7B68EE
+    style QLAP fill:#FFF5E6,stroke:#E67E22

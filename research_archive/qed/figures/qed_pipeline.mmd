@@ -1,0 +1,16 @@
+%% QED Pipeline Overview - Mermaid Source
+%% Render: https://mermaid.live or `mmdc -i qed_pipeline.mmd -o qed_pipeline.svg`
+
+graph LR
+    A["Classical Image<br/>(Grayscale 2ᵏ×2ᵏ)"] -->|"O(n²) gates"| B["Quantum State<br/>Encoding<br/>(Amplitude)"]
+    B -->|"O(k) gates"| C["Quantum Operation<br/>H ⊗ D₂ₙ₋₁"]
+    C --> D["Measurement<br/>& Post-selection<br/>(Ancilla = |1⟩)"]
+    D --> E["Post-processing<br/>Threshold +<br/>Boundary Restoration"]
+    E --> F["Edge Map<br/>(Output)"]
+
+    style A fill:#4A90D9,stroke:#333,color:#fff
+    style B fill:#7B68EE,stroke:#333,color:#fff
+    style C fill:#E74C3C,stroke:#333,color:#fff
+    style D fill:#F39C12,stroke:#333,color:#fff
+    style E fill:#27AE60,stroke:#333,color:#fff
+    style F fill:#2C3E50,stroke:#333,color:#fff

@@ -1,0 +1,123 @@
+# QED (Quantum Edge Detection) Research Archive Index
+# ===================================================
+# 이 파일은 아카이브의 모든 엔트리를 인덱싱합니다.
+# Streamlit 앱에서 검색/필터링에 사용됩니다.
+
+# --- 태그 체계 정의 ---
+tag_schema:
+  encoding:
+    - amplitude
+    - angle
+    - basis
+    - QRAM
+    - FRQI
+    - NEQR
+    - hybrid
+  edge_definition:
+    - gradient
+    - laplacian
+    - kernel
+    - morphological
+    - variational
+  circuit_type:
+    - hadamard
+    - QFT
+    - phase_estimation
+    - variational
+    - kernel
+    - comparator
+    - shift_operator
+    - QAOA
+  noise_awareness:
+    - "yes"
+    - "no"
+    - partial
+  evaluation:
+    - quantitative
+    - visual
+    - complexity
+    - hardware
+
+# --- 엔트리 목록 ---
+entries:
+  - id: yao2017_qhed
+    title: "Quantum Image Processing and Its Application to Edge Detection: Theory and Experiment"
+    authors:
+      - Xi-Wei Yao
+      - Hengyan Wang
+      - Zeyang Liao
+      - Ming-Cheng Chen
+      - Jian Pan
+      - Jun Li
+      - Kechao Zhang
+      - Xingcheng Lin
+      - Zhehui Wang
+      - Zhihuang Luo
+    year: 2017
+    venue: "Physical Review X"
+    doi: "10.1103/PhysRevX.7.031041"
+    entry_path: "entries/yao2017_qhed/entry.md"
+    tags:
+      encoding: amplitude
+      edge_definition: gradient
+      circuit_type: hadamard
+      noise_awareness: partial
+      evaluation:
+        - visual
+        - complexity
+    summary: >
+      Hadamard 게이트와 순환 치환 유니터리(D_{2n-1})를 이용한 양자 엣지 검출(QHED).
+      검출 단계 O(n) 복잡도 달성. IBM 4-qubit 프로세서에서 2×2 이미지 실험 검증.
+    figures:
+      - figures/qed_pipeline_overview.svg
+      - figures/qed_comparison_table.svg
+
+  - id: zhang2015_neqr_edge
+    title: "NEQR: A Novel Enhanced Quantum Representation of Digital Images"
+    authors:
+      - Yi Zhang
+      - Kai Lu
+      - Yinghui Gao
+      - Mo Wang
+    year: 2013
+    venue: "Quantum Information Processing"
+    doi: "10.1007/s11128-013-0567-z"
+    entry_path: "entries/zhang2015_neqr_edge/entry.md"
+    tags:
+      encoding: basis
+      edge_definition: gradient
+      circuit_type: comparator
+      noise_awareness: "no"
+      evaluation:
+        - visual
+        - complexity
+    summary: >
+      NEQR 기반 양자 이미지 표현과 양자 비교 연산을 통한 엣지 검출.
+      Basis encoding으로 결정론적 픽셀 복원 가능하나 큐빗 수가 많이 필요.
+    figures:
+      - figures/qed_pipeline_overview.svg
+
+  - id: fan2019_quantum_laplacian
+    title: "Quantum Image Edge Detection Based on Laplacian Operator and Zero-Cross Method"
+    authors:
+      - Ping Fan
+      - Ri-Gui Zhou
+      - WenWen Hu
+      - Naihuan Jing
+    year: 2019
+    venue: "Quantum Information Processing"
+    doi: "10.1007/s11128-019-2270-x"
+    entry_path: "entries/fan2019_quantum_laplacian/entry.md"
+    tags:
+      encoding: amplitude
+      edge_definition: laplacian
+      circuit_type: shift_operator
+      noise_awareness: "no"
+      evaluation:
+        - visual
+        - complexity
+    summary: >
+      라플라시안 연산자를 양자 회로로 구현한 등방성 엣지 검출.
+      2차 미분 기반으로 방향 편향 없는 엣지맵 생성. 시뮬레이션 검증.
+    figures:
+      - figures/qed_pipeline_overview.svg
