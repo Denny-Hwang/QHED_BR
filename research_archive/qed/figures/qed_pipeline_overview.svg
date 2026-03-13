@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-03-13T16:02:26.589850</dc:date>
+    <dc:date>2026-03-13T18:03:24.456308</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -76,7 +76,7 @@ Q 37.373333 144.406667 37.373333 151.166667
 L 37.373333 230.033333 
 Q 37.373333 236.793333 44.133333 236.793333 
 z
-" clip-path="url(#p8cac9cff70)" style="fill: #4a90d9; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#p3b3e088754)" style="fill: #4a90d9; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="patch_7">
     <path d="M 213.133333 236.793333 
@@ -89,7 +89,7 @@ Q 206.373333 144.406667 206.373333 151.166667
 L 206.373333 230.033333 
 Q 206.373333 236.793333 213.133333 236.793333 
 z
-" clip-path="url(#p8cac9cff70)" style="fill: #7b68ee; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#p3b3e088754)" style="fill: #7b68ee; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="patch_8">
     <path d="M 393.4 236.793333 
@@ -102,7 +102,7 @@ Q 386.64 144.406667 386.64 151.166667
 L 386.64 230.033333 
 Q 386.64 236.793333 393.4 236.793333 
 z
-" clip-path="url(#p8cac9cff70)" style="fill: #e74c3c; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#p3b3e088754)" style="fill: #e74c3c; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="patch_9">
     <path d="M 607.466667 236.793333 
@@ -115,7 +115,7 @@ Q 600.706667 144.406667 600.706667 151.166667
 L 600.706667 230.033333 
 Q 600.706667 236.793333 607.466667 236.793333 
 z
-" clip-path="url(#p8cac9cff70)" style="fill: #f39c12; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#p3b3e088754)" style="fill: #f39c12; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="patch_10">
     <path d="M 776.466667 236.793333 
@@ -128,7 +128,7 @@ Q 769.706667 144.406667 769.706667 151.166667
 L 769.706667 230.033333 
 Q 769.706667 236.793333 776.466667 236.793333 
 z
-" clip-path="url(#p8cac9cff70)" style="fill: #27ae60; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
+" clip-path="url(#p3b3e088754)" style="fill: #27ae60; opacity: 0.92; stroke: #333333; stroke-width: 1.5; stroke-linejoin: miter"/>
    </g>
    <g id="text_1">
     <!-- Quantum Edge Detection (QED) Pipeline -->
@@ -2169,7 +2169,7 @@ L 836.233333 270.396363
   </g>
  </g>
  <defs>
-  <clipPath id="p8cac9cff70">
+  <clipPath id="p3b3e088754">
    <rect x="21.6" y="21.6" width="901.333333" height="338"/>
   </clipPath>
  </defs>

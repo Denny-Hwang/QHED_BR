@@ -1,9 +1,9 @@
 # QED (Quantum Edge Detection) Research Archive Index
 # ===================================================
-# 이 파일은 아카이브의 모든 엔트리를 인덱싱합니다.
-# Streamlit 앱에서 검색/필터링에 사용됩니다.
+# This file indexes all entries in the archive.
+# Used by the Streamlit app for search and filtering.
 
-# --- 태그 체계 정의 ---
+# --- Tag Schema Definition ---
 tag_schema:
   encoding:
     - amplitude
@@ -38,7 +38,7 @@ tag_schema:
     - complexity
     - hardware
 
-# --- 엔트리 목록 ---
+# --- Entry List ---
 entries:
   - id: yao2017_qhed
     title: "Quantum Image Processing and Its Application to Edge Detection: Theory and Experiment"
@@ -65,9 +65,11 @@ entries:
       evaluation:
         - visual
         - complexity
+        - hardware
     summary: >
-      Hadamard 게이트와 순환 치환 유니터리(D_{2n-1})를 이용한 양자 엣지 검출(QHED).
-      검출 단계 O(n) 복잡도 달성. IBM 4-qubit 프로세서에서 2×2 이미지 실험 검증.
+      Foundational QHED algorithm using Hadamard gate and cyclic permutation unitary (D_{2n-1})
+      for quantum edge detection. Achieves O(n) detection complexity. First experimental
+      demonstration on IBM 4-qubit quantum processor with 2x2 images.
     figures:
       - figures/qed_pipeline_overview.svg
       - figures/qed_comparison_table.svg
@@ -92,8 +94,34 @@ entries:
         - visual
         - complexity
     summary: >
-      NEQR 기반 양자 이미지 표현과 양자 비교 연산을 통한 엣지 검출.
-      Basis encoding으로 결정론적 픽셀 복원 가능하나 큐빗 수가 많이 필요.
+      NEQR-based quantum image representation with basis-state pixel encoding.
+      Enables deterministic pixel recovery (vs. FRQI's probabilistic recovery).
+      Foundation for subsequent NEQR-based quantum edge detection algorithms.
+    figures:
+      - figures/qed_pipeline_overview.svg
+
+  - id: yi2015_qsobel
+    title: "QSobel: A Novel Quantum Image Edge Extraction Algorithm"
+    authors:
+      - Zhang Yi
+      - Lu Kai
+      - Gao Yinghui
+    year: 2015
+    venue: "Science China Information Sciences"
+    doi: "10.1007/s11432-014-5158-9"
+    entry_path: "entries/yi2015_qsobel/entry.md"
+    tags:
+      encoding: FRQI
+      edge_definition: gradient
+      circuit_type: shift_operator
+      noise_awareness: "no"
+      evaluation:
+        - visual
+        - complexity
+    summary: >
+      First quantum implementation of the Sobel operator using FRQI encoding.
+      Computes horizontal and vertical gradients via quantum parallelism with O(n^2) complexity.
+      Pioneering work that spawned the family of improved quantum Sobel algorithms.
     figures:
       - figures/qed_pipeline_overview.svg
 
@@ -117,7 +145,110 @@ entries:
         - visual
         - complexity
     summary: >
-      라플라시안 연산자를 양자 회로로 구현한 등방성 엣지 검출.
-      2차 미분 기반으로 방향 편향 없는 엣지맵 생성. 시뮬레이션 검증.
+      Implements the Laplacian operator as a quantum circuit for isotropic edge detection.
+      Uses second-order derivatives to eliminate directional bias. Combines shift operators
+      for 4-neighbor access. Simulation results match classical Laplacian filtering.
+    figures:
+      - figures/qed_pipeline_overview.svg
+
+  - id: chetia2021_improved_sobel
+    title: "Quantum Image Edge Detection Using Improved Sobel Mask Based on NEQR"
+    authors:
+      - Rohit Chetia
+      - S. M. Borah Boruah
+      - Pranab Priyam Sahu
+    year: 2021
+    venue: "Quantum Information Processing"
+    doi: "10.1007/s11128-020-02944-7"
+    entry_path: "entries/chetia2021_improved_sobel/entry.md"
+    tags:
+      encoding: NEQR
+      edge_definition: gradient
+      circuit_type: comparator
+      noise_awareness: "no"
+      evaluation:
+        - visual
+        - complexity
+    summary: >
+      Extends quantum Sobel from 2 to 4 directions (horizontal, vertical, both diagonals)
+      on NEQR images. Incorporates non-maximum suppression and double thresholding
+      from classical Canny. Achieves ~O(n^2 + q^2) complexity with improved edge quality.
+    figures:
+      - figures/qed_pipeline_overview.svg
+      - figures/qed_comparison_table.svg
+
+  - id: ma2022_eight_direction_sobel
+    title: "Quantum Image Edge Detection Based on Eight-Direction Sobel Operator for NEQR"
+    authors:
+      - Yining Ma
+      - Hongyang Ma
+      - Pengcheng Chu
+    year: 2022
+    venue: "Quantum Information Processing"
+    doi: "10.1007/s11128-022-03535-6"
+    entry_path: "entries/ma2022_eight_direction_sobel/entry.md"
+    tags:
+      encoding: NEQR
+      edge_definition: gradient
+      circuit_type: comparator
+      noise_awareness: "no"
+      evaluation:
+        - visual
+        - complexity
+    summary: >
+      First 8-direction quantum Sobel algorithm for NEQR images.
+      Simultaneously computes gradients in all 8 compass directions via quantum parallelism.
+      Preserves finer edge details than 2-dir and 4-dir quantum Sobel methods.
+    figures:
+      - figures/qed_pipeline_overview.svg
+      - figures/qed_comparison_table.svg
+
+  - id: silver2022_hybrid_nisq
+    title: "A Hybrid Quantum Image Edge Detector for the NISQ Era"
+    authors:
+      - Travis Silver-Thorn
+    year: 2022
+    venue: "Quantum Machine Intelligence"
+    doi: "10.1007/s42484-022-00071-3"
+    entry_path: "entries/silver2022_hybrid_nisq/entry.md"
+    tags:
+      encoding: angle
+      edge_definition: variational
+      circuit_type: variational
+      noise_awareness: "yes"
+      evaluation:
+        - quantitative
+        - visual
+    summary: >
+      Hybrid classical-quantum edge detector using a quantum artificial neuron (QAN).
+      Specifically designed for NISQ constraints with few qubits (3-5) and shallow circuits.
+      Circuit error is independent of image size. Trainable for different edge criteria.
+    figures:
+      - figures/qed_pipeline_overview.svg
+
+  - id: shubha2024_edge_quantumized
+    title: "Edge Detection Quantumized: A Novel Quantum Algorithm for Image Processing"
+    authors:
+      - Syed Emad Uddin Shubha
+      - Mir Muzahedul Islam
+      - Tanvir Ahahmed Sadi
+      - Md. Hasibul Hasan Miraz
+      - M. R. C. Mahdy
+    year: 2024
+    venue: "arXiv preprint"
+    doi: ""
+    entry_path: "entries/shubha2024_edge_quantumized/entry.md"
+    tags:
+      encoding: FRQI
+      edge_definition: gradient
+      circuit_type: hadamard
+      noise_awareness: partial
+      evaluation:
+        - visual
+        - complexity
+    summary: >
+      Modifies the original QHED for complex (non-binary) images via FRQI encoding
+      and dynamic threshold adjustment. Adds classical-quantum hybrid noise filtering.
+      Extends QHED applicability from binary to real-world grayscale/color images.
     figures:
       - figures/qed_pipeline_overview.svg

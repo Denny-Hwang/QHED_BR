@@ -1,11 +1,11 @@
 """
 QED Research Archive - SVG Figure Generator
 ============================================
-잘림/깨짐 방지 체크리스트 적용:
+Anti-clipping checklist applied:
   - tight_layout() + bbox_inches="tight"
-  - 충분한 figsize + padding
-  - 축소해도 읽히는 폰트/선 두께
-  - SVG 형식 우선
+  - Sufficient figsize + padding
+  - Font/line sizes readable even when scaled down
+  - SVG format preferred
 """
 
 import os
@@ -64,7 +64,7 @@ def draw_arrow(ax, x1, y1, x2, y2, color='#555555'):
 # Figure 1: QED Full Pipeline Overview
 # ==========================================================================
 def generate_pipeline_overview():
-    """QED 전체 파이프라인 다이어그램 (입력→인코딩→양자연산→측정→후처리→엣지맵)"""
+    """Full QED pipeline diagram (Input -> Encoding -> Quantum Op -> Measurement -> Post-processing -> Edge Map)"""
     fig, ax = plt.subplots(figsize=(16, 5))
     ax.set_xlim(-0.5, 15.5)
     ax.set_ylim(-2.5, 3.5)
@@ -123,7 +123,7 @@ def generate_pipeline_overview():
 # Figure 2: QHED Circuit Block Diagram
 # ==========================================================================
 def generate_circuit_block_diagram():
-    """대표 알고리즘(QHED)의 회로 블록 다이어그램"""
+    """QHED circuit block diagram (abstracted architecture)"""
     fig, ax = plt.subplots(figsize=(14, 7))
     ax.set_xlim(-0.5, 13.5)
     ax.set_ylim(-1.5, 7.5)
@@ -229,8 +229,8 @@ def generate_circuit_block_diagram():
 # Figure 3: Comparison Table (Approaches)
 # ==========================================================================
 def generate_comparison_table():
-    """기존 QED 접근들과의 비교표 (장점/한계/리소스)"""
-    fig, ax = plt.subplots(figsize=(15, 8))
+    """Comparison table of QED approaches (strengths / limitations / resources)"""
+    fig, ax = plt.subplots(figsize=(16, 11))
     ax.axis('off')
     fig.patch.set_facecolor(COLORS['bg'])
 
@@ -247,10 +247,20 @@ def generate_comparison_table():
     rows = [
         ["QHED\n(Yao 2017)", "Amplitude", "Gradient\n(1st deriv.)", "Hadamard\n+ D₂ₙ₋₁",
          "2k + 1", "O(k)", "Partial", "Yes\n(IBM 5Q)", "Encoding\ncost O(n²)"],
-        ["NEQR Edge\n(Zhang 2013)", "Basis\n(NEQR)", "Gradient\n(comparator)", "Quantum\nComparator",
+        ["NEQR\n(Zhang 2013)", "Basis\n(NEQR)", "Gradient\n(comparator)", "Quantum\nComparator",
          "2n + q\n(~24 for 256²)", "O(n²)", "No", "No", "High qubit\ncount"],
+        ["QSobel\n(Yi 2015)", "FRQI", "Gradient\n(Sobel 2-dir)", "Shift\nOperator",
+         "2n + 1 + a", "O(n²)", "No", "No", "2-dir only\nFRQI limits"],
         ["Q-Laplacian\n(Fan 2019)", "Amplitude\n/ FRQI", "Laplacian\n(2nd deriv.)", "Shift\nOperator",
          "2k + q + a", "O(n²)", "No", "No", "Noise\nsensitivity"],
+        ["4-dir Sobel\n(Chetia 2021)", "NEQR", "Gradient\n(Sobel 4-dir)", "Comparator\n+ NMS",
+         "2n + q + a", "O(n²+q²)", "No", "No", "High qubit\noverhead"],
+        ["8-dir Sobel\n(Ma 2022)", "NEQR", "Gradient\n(Sobel 8-dir)", "Comparator",
+         "2n + q + a", "O(n²+q²)", "No", "No", "Very deep\ncircuit"],
+        ["Hybrid QAN\n(2022)", "Angle", "Variational\n(learned)", "Variational\n(QAN)",
+         "3-5", "O(1)/patch", "Yes", "No", "No speedup\nneeds training"],
+        ["Mod. QHED\n(Shubha 2024)", "FRQI", "Gradient\n(1st deriv.)", "Hadamard\n(modified)",
+         "2n + 1", "O(1)", "Partial", "No", "Hybrid\nclassical post"],
         ["QHED-BR\n(This Work)", "Amplitude", "Gradient\n(1st deriv.)", "Hadamard\n+ D₂ₙ₋₁",
          "2k + 1", "O(k)", "Partial", "Yes\n(IBM Heron)", "Encoding\ncost O(n²)"],
         ["Classical\nSobel", "N/A", "Gradient\n(convolution)", "N/A",
@@ -267,14 +277,14 @@ def generate_comparison_table():
     for w in col_widths[:-1]:
         x_positions.append(x_positions[-1] + w)
 
-    row_height = 0.105
-    header_y = 0.87
+    row_height = 0.072
+    header_y = 0.92
     start_y = header_y - row_height
 
     # Header
     for j, col in enumerate(columns):
         ax.text(x_positions[j] + col_widths[j]/2, header_y, col,
-                ha='center', va='center', fontsize=8.5, fontweight='bold',
+                ha='center', va='center', fontsize=8, fontweight='bold',
                 color='white', transform=ax.transAxes,
                 bbox=dict(boxstyle='round,pad=0.3', facecolor='#2C3E50',
                           edgecolor='#1a1a2e', alpha=0.95))
@@ -284,7 +294,8 @@ def generate_comparison_table():
             color='#333', linewidth=1.5, transform=ax.transAxes, clip_on=False)
 
     # Rows
-    row_colors = ['#E8F4FD', '#F5F0FF', '#FFF5E6', '#E8F8E8', '#F5F5F5', '#F5F5F5']
+    row_colors = ['#E8F4FD', '#F5F0FF', '#FFF8E1', '#FFF5E6', '#E8F0FF',
+                  '#FDE8FF', '#E8FFF0', '#FFF0E8', '#E8F8E8', '#F5F5F5', '#F5F5F5']
     for i, row in enumerate(rows):
         y = start_y - i * row_height
         # Row background
@@ -297,7 +308,7 @@ def generate_comparison_table():
             weight = 'bold' if j == 0 else 'normal'
             color = '#1a1a2e' if j == 0 else '#333'
             ax.text(x_positions[j] + col_widths[j]/2, y, cell,
-                    ha='center', va='center', fontsize=7.5,
+                    ha='center', va='center', fontsize=6.8,
                     fontweight=weight, color=color,
                     transform=ax.transAxes)
 

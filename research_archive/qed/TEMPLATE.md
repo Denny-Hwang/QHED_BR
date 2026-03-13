@@ -1,13 +1,13 @@
-# {논문 제목}
+# {Paper Title}
 
 > **Entry ID**: `{entry_id}`
 > **Last Updated**: {YYYY-MM-DD}
 
 ---
 
-## (A) TL;DR (간단 요약)
+## (A) TL;DR
 
-<!-- 3~5줄로 핵심 기여와 결과 요약 -->
+<!-- 3-5 lines summarizing the core contribution and results -->
 
 - ...
 - ...
@@ -15,103 +15,103 @@
 
 ---
 
-## (B) 상세 요약
+## (B) Detailed Summary
 
-### 문제 정의
+### Problem Statement
 
-<!-- 이 논문이 해결하려는 문제 -->
+<!-- What problem does this paper address? -->
 
-### 핵심 아이디어
+### Core Idea
 
-<!-- 제안하는 접근 방식의 핵심 -->
+<!-- What is the key insight of the proposed approach? -->
 
-### 방법
+### Method
 
-<!-- 구체적 방법론 -->
+<!-- Concrete methodology -->
 
-### 결과
+### Results
 
-<!-- 주요 실험/이론 결과 -->
+<!-- Main experimental / theoretical results -->
 
 ---
 
-## (C) 원리 / 메커니즘
+## (C) Mechanism / Principles
 
-<!-- 수식, 양자 회로, 연산 흐름 중심 설명 -->
+<!-- Focus on formulas, quantum circuits, and computational flow -->
 
-### 양자 회로 / 연산 흐름
+### Quantum Circuit / Computation Flow
 
 ```
-[회로 다이어그램 또는 pseudo-code]
+[Circuit diagram or pseudo-code]
 ```
 
-### 핵심 수식
+### Key Equations
 
 $$
-\text{수식}
+\text{equation}
 $$
 
 ---
 
-## (D) 장점 / 기여
+## (D) Strengths / Contributions
 
-<!-- 이 연구의 새로운 점, 기여 -->
+<!-- What is novel about this work? -->
 
 - ...
 - ...
 
 ---
 
-## (E) 문제점 / 한계
+## (E) Limitations / Weaknesses
 
-<!-- 가정, 노이즈, 데이터 인코딩, 리소스, 재현성 등 -->
+<!-- Assumptions, noise, data encoding cost, resources, reproducibility -->
 
-| 한계 항목 | 설명 |
-|-----------|------|
-| 데이터 인코딩 비용 | |
-| 노이즈 민감도 | |
-| 확장성 | |
-| 재현성 | |
-
----
-
-## (F) 비교 / 베이스라인
-
-<!-- 클래식 대비, 다른 QED 접근 대비 -->
-
-| 방법 | 복잡도 | 장점 | 단점 |
-|------|--------|------|------|
-| 본 논문 | | | |
-| Classical (Sobel 등) | | | |
-| 기타 QED | | | |
+| Limitation | Description |
+|------------|-------------|
+| Encoding cost | |
+| Noise sensitivity | |
+| Scalability | |
+| Reproducibility | |
 
 ---
 
-## (G) 재현 / 구현 노트
+## (F) Comparison / Baselines
 
-| 항목 | 내용 |
-|------|------|
-| 필요 라이브러리 | |
-| 데이터셋 | |
-| 큐빗 수 | |
-| 회로 깊이 | |
-| 실행 환경 | |
-| 실행 비용/시간 | |
-| 코드 공개 여부 | |
+<!-- vs. classical methods, vs. other QED approaches -->
+
+| Method | Complexity | Pros | Cons |
+|--------|-----------|------|------|
+| This paper | | | |
+| Classical (Sobel, etc.) | | | |
+| Other QED | | | |
 
 ---
 
-## (H) 키워드 / 태그
+## (G) Reproduction / Implementation Notes
 
-- **데이터 인코딩**: {amplitude / angle / basis / QRAM}
-- **엣지 정의**: {gradient / laplacian / kernel / other}
-- **회로 타입**: {QFT / phase_estimation / variational / kernel / hadamard}
-- **노이즈 고려**: {yes / no / partial}
-- **평가 방식**: {quantitative / visual / complexity}
+| Item | Details |
+|------|---------|
+| Libraries required | |
+| Dataset | |
+| Qubit count | |
+| Circuit depth | |
+| Execution environment | |
+| Runtime / cost | |
+| Code availability | |
 
 ---
 
-## (I) 인용 정보
+## (H) Keywords / Tags
+
+- **Data encoding**: {amplitude / angle / basis / QRAM}
+- **Edge definition**: {gradient / laplacian / kernel / other}
+- **Circuit type**: {QFT / phase_estimation / variational / kernel / hadamard}
+- **Noise-aware**: {yes / no / partial}
+- **Evaluation**: {quantitative / visual / complexity}
+
+---
+
+## (I) Citation
 
 ```bibtex
 @article{key,
@@ -123,18 +123,18 @@ $$
 }
 ```
 
-**링크**: [논문 URL]()
+**Link**: [Paper URL]()
 
 ---
 
-## (J) 그림 / 다이어그램
+## (J) Figures / Diagrams
 
-<!-- SVG 우선, figures/ 디렉터리에 저장 -->
-<!-- 예: ![pipeline](../../figures/pipeline_overview.svg) -->
+<!-- SVG preferred, stored in figures/ directory -->
+<!-- e.g., ![pipeline](../../figures/pipeline_overview.svg) -->
 
 ---
 
-## (K) 오픈 퀘스천 / 후속 연구 아이디어
+## (K) Open Questions / Future Research Ideas
 
 - ...
 - ...
