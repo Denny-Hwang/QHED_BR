@@ -1,0 +1,40 @@
+%% QHED Circuit Block Diagram - Mermaid Source
+%% Render: https://mermaid.live or `mmdc -i qhed_circuit.mmd -o qhed_circuit.svg`
+
+graph TD
+    subgraph Input["Input Register"]
+        Q0["|0⟩ Ancilla"]
+        Q1["|0⟩ Data q₁"]
+        Q2["|0⟩ Data q₂"]
+        Qdots["..."]
+        QN["|0⟩ Data q₂ₖ"]
+    end
+
+    subgraph Encode["Amplitude Encoding — O(n²) gates"]
+        AE["Encode pixel intensities<br/>as quantum amplitudes"]
+    end
+
+    subgraph QOps["Quantum Operations — O(k) gates"]
+        H["Hadamard (H)<br/>on Ancilla"]
+        D["D₂ₙ₋₁ Cyclic Permutation<br/>on Data Qubits"]
+    end
+
+    subgraph Meas["Measurement"]
+        M["Measure all qubits"]
+    end
+
+    subgraph Post["Post-processing"]
+        PS["Post-select: Ancilla = |1⟩"]
+        Edge["Extract edge probabilities<br/>|cⱼ − cⱼ'|²"]
+    end
+
+    Input --> Encode
+    Encode --> QOps
+    QOps --> Meas
+    Meas --> Post
+
+    style Input fill:#f0f4ff,stroke:#4A90D9
+    style Encode fill:#f0e6ff,stroke:#7B68EE
+    style QOps fill:#ffe6e6,stroke:#E74C3C
+    style Meas fill:#fff3e0,stroke:#F39C12
+    style Post fill:#e6f9e6,stroke:#27AE60

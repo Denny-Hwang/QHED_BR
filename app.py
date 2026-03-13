@@ -77,6 +77,7 @@ page = st.sidebar.radio(
         "3. Interactive Edge Detection",
         "4. Complexity Comparison",
         "5. IBM Quantum Hardware",
+        "6. Literature Archive",
     ],
 )
 
@@ -1596,4 +1597,18 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
             file_name=f"qhed_{st.session_state['ibm_backend_name']}.png",
             mime="image/png",
             key="hw_download",
+        )
+
+# ===================================================================
+# PAGE 6: Literature Archive
+# ===================================================================
+elif page == "6. Literature Archive":
+    try:
+        from literature_archive import render_literature_archive
+        render_literature_archive()
+    except ImportError as e:
+        st.error(
+            f"Literature Archive module not available.\n\n"
+            f"Please install required dependencies: `pip install pyyaml`\n\n"
+            f"```\n{e}\n```"
         )

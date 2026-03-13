@@ -7,3 +7,4 @@ Pillow
 opencv-python-headless
 streamlit>=1.30
 pylatexenc
+pyyaml
