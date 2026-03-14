@@ -1,8 +1,8 @@
 """
 Literature Archive Page for QHED-BR Streamlit App
 ===================================================
-QED 선행연구 아카이브 열람 페이지.
-검색, 필터, 상세 보기, 피겨 갤러리 기능 제공.
+QED prior research archive viewer.
+Provides search, filter, detail view, and figure gallery.
 """
 
 import os
@@ -75,8 +75,8 @@ def render_literature_archive():
     """Render the full Literature Archive page."""
     st.title("Quantum Edge Detection — Literature Archive")
     st.markdown(
-        "QED 관련 선행연구를 통일된 템플릿으로 정리한 아카이브입니다. "
-        "사이드바에서 태그/연도/키워드로 필터링하고, 각 논문의 상세 분석을 열람할 수 있습니다."
+        "A curated archive of QED prior research organized with a unified analysis template. "
+        "Use the sidebar to filter by tags, year, or keywords, and expand entries for detailed analysis."
     )
     st.markdown("---")
 
@@ -84,17 +84,17 @@ def render_literature_archive():
     try:
         index_data = load_index()
     except FileNotFoundError:
-        st.error(f"인덱스 파일을 찾을 수 없습니다: {INDEX_PATH}")
+        st.error(f"Index file not found: {INDEX_PATH}")
         return
     except Exception as e:
-        st.error(f"인덱스 로딩 오류: {e}")
+        st.error(f"Error loading index: {e}")
         return
 
     entries = index_data.get("entries", [])
     tag_schema = index_data.get("tag_schema", {})
 
     if not entries:
-        st.warning("아카이브에 등록된 엔트리가 없습니다.")
+        st.warning("No entries found in the archive.")
         return
 
     # -----------------------------------------------------------------
@@ -106,7 +106,7 @@ def render_literature_archive():
     # Keyword search
     search_query = st.sidebar.text_input(
         "Keyword Search",
-        placeholder="논문 제목, 요약, 태그...",
+        placeholder="Title, summary, tags...",
         key="archive_search",
     )
 
@@ -199,11 +199,10 @@ def render_literature_archive():
             ("Approaches Comparison", "figures/qed_comparison_table.svg"),
         ]
         for title, svg_path in diagram_files:
-            svg_content = load_svg(svg_path)
-            if svg_content:
+            full_path = os.path.join(ARCHIVE_DIR, svg_path)
+            if os.path.exists(full_path):
                 st.markdown(f"**{title}**")
-                st.image(os.path.join(ARCHIVE_DIR, svg_path),
-                         use_container_width=True)
+                st.image(full_path, use_container_width=True)
                 st.markdown("")
 
     st.markdown("---")
@@ -212,7 +211,7 @@ def render_literature_archive():
     # Paper list
     # -----------------------------------------------------------------
     if not filtered:
-        st.info("필터 조건에 맞는 논문이 없습니다. 사이드바에서 필터를 조정해 주세요.")
+        st.info("No papers match the current filters. Adjust the sidebar filters to see results.")
         return
 
     st.subheader(f"Papers ({len(filtered)})")
@@ -255,7 +254,7 @@ def render_literature_archive():
                 if md_content:
                     st.markdown(md_content, unsafe_allow_html=True)
                 else:
-                    st.warning(f"엔트리 파일을 찾을 수 없습니다: {entry_path}")
+                    st.warning(f"Entry file not found: {entry_path}")
 
                 # Figure gallery
                 figures = entry.get("figures", [])
@@ -275,40 +274,39 @@ def render_literature_archive():
     # -----------------------------------------------------------------
     with st.expander("Usage & Development Guide"):
         st.markdown("""
-### 로컬 실행 방법
+### Running Locally
 
 ```bash
-# 의존성 설치
+# Install dependencies
 pip install streamlit pyyaml matplotlib numpy
 
-# 다이어그램 생성 (최초 1회)
+# Generate diagrams (first time only)
 python research_archive/qed/generate_figures.py
 
-# Streamlit 실행
+# Run the Streamlit app
 streamlit run app.py
 ```
 
-### 새 논문 추가 방법
+### Adding a New Paper
 
-1. `research_archive/qed/entries/` 아래에 새 폴더 생성 (예: `author2024_topic/`)
-2. `TEMPLATE.md`를 복사하여 `entry.md`로 저장 후 내용 작성
-3. `research_archive/qed/index.yaml`에 새 엔트리 메타데이터 추가
-4. (선택) 관련 피겨를 `figures/` 디렉터리에 추가
+1. Create a new folder under `research_archive/qed/entries/` (e.g., `author2024_topic/`)
+2. Copy `TEMPLATE.md` as `entry.md` and fill in all sections (A through K)
+3. Add the entry metadata to `research_archive/qed/index.yaml`
+4. (Optional) Add related figures to `figures/`
 
-### 디렉터리 구조
+### Directory Structure
 
 ```
 research_archive/qed/
-├── TEMPLATE.md              # 통일 분석 템플릿
-├── index.yaml               # 메타데이터 인덱스
-├── generate_figures.py      # SVG 다이어그램 생성 스크립트
+├── TEMPLATE.md              # Unified analysis template
+├── index.yaml               # Metadata index
+├── generate_figures.py      # SVG diagram generation script
 ├── entries/
 │   ├── yao2017_qhed/
 │   │   └── entry.md
 │   ├── zhang2015_neqr_edge/
 │   │   └── entry.md
-│   └── fan2019_quantum_laplacian/
-│       └── entry.md
+│   └── ...                  # More entries
 └── figures/
     ├── qed_pipeline_overview.svg
     ├── qhed_circuit_blocks.svg
