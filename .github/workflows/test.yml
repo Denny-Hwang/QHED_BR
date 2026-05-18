@@ -1,0 +1,56 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: AST check (entry + page modules)
+        run: |
+          python -c "
+          import ast, sys
+          files = [
+              'app.py',
+              'qhed.py',
+              'basicFunctions.py',
+              'classical_ed_methods.py',
+              'literature_archive.py',
+              'ui/i18n.py',
+              'ui/helpers.py',
+              'app_pages/home.py',
+              'app_pages/overview.py',
+              'app_pages/circuit.py',
+              'app_pages/edge_detection.py',
+              'app_pages/complexity.py',
+              'app_pages/ibm_hardware.py',
+              'app_pages/literature.py',
+          ]
+          for f in files:
+              ast.parse(open(f).read())
+              print('OK', f)
+          "
+
+      - name: Run pytest
+        run: python -m pytest tests/ -v
