@@ -25,17 +25,22 @@ Classical edge detection algorithms (Sobel, Canny, etc.) have **O(n²)** time co
 
 ```
 QHED_BR/
-├── app.py                  # Streamlit web application (6 pages)
+├── app.py                  # Streamlit entry point — language switcher + st.navigation
+├── app_pages/              # One file per page (home, overview, circuit, ...)
+├── ui/
+│   ├── i18n.py             # English / Korean translation table
+│   └── helpers.py          # Figure + caching helpers
 ├── qhed.py                 # Core QHED algorithm + D_{2n-1} circuit
 ├── basicFunctions.py       # Image loading, encoding utilities
 ├── classical_ed_methods.py # Sobel, Prewitt, Laplacian, Canny
-├── literature_archive.py   # Literature archive page
+├── literature_archive.py   # Literature archive page (delegated)
 ├── requirements.txt        # Python dependencies
 ├── images/
 │   ├── samples/            # General sample images
 │   └── license_plates/     # License plate test images
 ├── tests/                  # pytest regression suite
 ├── research_archive/       # Curated QED prior research
+├── .github/workflows/      # CI: pytest on every push and PR
 └── README.md
 ```
 
@@ -45,6 +50,17 @@ QHED_BR/
 pip install pytest
 python -m pytest tests/
 ```
+
+CI runs the same suite on every push and pull request via GitHub Actions
+(see `.github/workflows/test.yml`).
+
+## Internationalisation
+
+The sidebar carries a compact language switcher (English / 한국어) backed
+by `ui/i18n.py`. The active language is persisted via the URL query
+string, so a Korean-rendered page is shareable as-is. Heavy technical
+content (LaTeX derivations, references) stays in English regardless of
+the active locale.
 
 ## Installation
 
