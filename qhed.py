@@ -12,6 +12,26 @@ from basicFunctions import amplitude_encode, boundary_zero
 
 
 # ---------------------------------------------------------------------------
+# Cyclic shift D_{2n-1} as a gate-level circuit
+# ---------------------------------------------------------------------------
+
+def D2n_1_circuit(n_qubits):
+    """Gate-level construction of the cyclic shift D_{2n-1}.
+
+    Equivalent to the dense unitary ``np.roll(np.identity(2**n_qubits), 1, axis=1)``
+    (the decrement / cyclic right-shift on the basis state index), but built from
+    O(n) elementary gates instead of an O(2^n) unitary synthesis. Suitable for
+    real-hardware transpilation; for edge detection the direction of the shift
+    is irrelevant since amplitudes are taken in absolute value.
+    """
+    qc = QuantumCircuit(n_qubits, name='D_{2n-1}')
+    qc.x(0)
+    for target in range(1, n_qubits):
+        qc.mcx(list(range(target)), target)
+    return qc
+
+
+# ---------------------------------------------------------------------------
 # Core QHED using statevector simulation
 # ---------------------------------------------------------------------------
 
@@ -24,8 +44,9 @@ def QHED(image, thr_ratio=0.7, D2n_1=None):
         2D grayscale image (values in [0, 1]), shape must be power-of-2 square.
     thr_ratio : float
         Threshold ratio for binarising edge amplitudes.
-    D2n_1 : np.ndarray or Operator, optional
-        Precomputed permutation unitary. If None, computed internally.
+    D2n_1 : ignored
+        Kept for backward compatibility. The cyclic shift is now built as an
+        O(n)-gate circuit (see :func:`D2n_1_circuit`).
 
     Returns
     -------
@@ -52,9 +73,7 @@ def QHED(image, thr_ratio=0.7, D2n_1=None):
     if image_norm_v is not None and len(image_norm_v) < target_len:
         image_norm_v = np.pad(image_norm_v, (0, target_len - len(image_norm_v)))
 
-    # Amplitude permutation unitary (cyclic shift) — reuse if provided
-    if D2n_1 is None:
-        D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
+    D_circ = D2n_1_circuit(total_qb)
 
     results = {}
     for label, norm_data in [('h', image_norm_h), ('v', image_norm_v)]:
@@ -65,13 +84,16 @@ def QHED(image, thr_ratio=0.7, D2n_1=None):
         qc = QuantumCircuit(total_qb)
         qc.initialize(norm_data.tolist(), range(1, total_qb))
         qc.h(0)
-        qc.unitary(D2n_1, range(total_qb))
+        qc.compose(D_circ, range(total_qb), inplace=True)
         qc.h(0)
 
         sv = np.asarray(Statevector.from_instruction(qc))
 
-        # Extract odd-indexed amplitudes (edge information)
-        edge_amps = np.abs(np.real(sv[1::2]))[:total_pixels]
+        # Edge information lives in the odd-indexed amplitudes. After H–D–H on
+        # a real input the residual imaginary part is only numerical noise, so
+        # taking |amplitude| (rather than |Re(amplitude)|) is correct and
+        # marginally more robust.
+        edge_amps = np.abs(sv[1::2])[:total_pixels]
         results[label] = edge_amps
 
     # Threshold
@@ -105,8 +127,6 @@ def build_qhed_circuit(image, scan='horizontal'):
     if len(norm_data) < target_len:
         norm_data = np.pad(norm_data, (0, target_len - len(norm_data)))
 
-    D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
-
     ancilla = QuantumRegister(1, 'ancilla')
     data = QuantumRegister(data_qb, 'pixel')
     cr = ClassicalRegister(total_qb, 'meas')
@@ -115,7 +135,7 @@ def build_qhed_circuit(image, scan='horizontal'):
     qc.initialize(norm_data.tolist(), range(1, total_qb))
     qc.barrier()
     qc.h(0)
-    qc.unitary(D2n_1, range(total_qb), label='D_{2n-1}')
+    qc.compose(D2n_1_circuit(total_qb), range(total_qb), inplace=True)
     qc.h(0)
     qc.barrier()
     qc.measure(range(total_qb), range(total_qb))
@@ -149,9 +169,9 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000):
     if image_norm_v is not None and len(image_norm_v) < target_len:
         image_norm_v = np.pad(image_norm_v, (0, target_len - len(image_norm_v)))
 
-    D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
     from qiskit_aer import AerSimulator
     backend = AerSimulator()
+    D_circ = D2n_1_circuit(total_qb)
 
     results = {}
     for label, norm_data in [('h', image_norm_h), ('v', image_norm_v)]:
@@ -163,7 +183,7 @@ def QHED_qasm(image, thr_ratio=0.7, shots=10000):
         qc.initialize(norm_data.tolist(), range(1, total_qb))
         qc.barrier()
         qc.h(0)
-        qc.unitary(D2n_1, range(total_qb))
+        qc.compose(D_circ, range(total_qb), inplace=True)
         qc.h(0)
         qc.measure_all()
 
@@ -262,18 +282,15 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
     total_patches = len(row_positions) * len(col_positions)
     current = 0
 
-    # Precompute the permutation unitary once for all patches
-    data_qb = int(np.ceil(np.log2(width_patch * width_patch)))
-    total_qb = data_qb + 1
-    D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
-
-    # GC interval: free memory every N patches
+    # GC interval: free memory every N patches. The cyclic-shift circuit is
+    # now built per-call inside QHED (O(n) gates, negligible cost), so we no
+    # longer hold a dense 2^q x 2^q unitary in memory.
     gc_interval = max(10, total_patches // 20)
 
     for r in row_positions:
         for c in col_positions:
             patch = input_img[r:r + width_patch, c:c + width_patch]
-            edge_result = QHED(patch, thr_ratio=thr_ratio, D2n_1=D2n_1)
+            edge_result = QHED(patch, thr_ratio=thr_ratio)
 
             if patch_boundary_zero:
                 edge_result = boundary_zero(edge_result)
@@ -285,7 +302,6 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
             if progress_callback:
                 progress_callback(current, total_patches)
 
-            # Periodic garbage collection to keep memory usage stable
             if current % gc_interval == 0:
                 gc.collect()
 
@@ -293,9 +309,6 @@ def edge_detection_stride(input_img, width_qb=2, thr_ratio=0.5,
     # Pixels with count=0 are image-border pixels (always boundary) -- leave as 0.
     count_img[count_img == 0] = 1
     result_img = (result_img / count_img >= 0.5).astype(np.uint8)
-
-    # Final cleanup
-    del D2n_1
     gc.collect()
 
     return result_img, total_patches

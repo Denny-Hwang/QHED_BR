@@ -25,17 +25,25 @@ Classical edge detection algorithms (Sobel, Canny, etc.) have **O(n²)** time co
 
 ```
 QHED_BR/
-├── app.py                  # Streamlit web application (5 pages)
-├── qhed.py                 # Core QHED algorithm (statevector & QASM)
+├── app.py                  # Streamlit web application (6 pages)
+├── qhed.py                 # Core QHED algorithm + D_{2n-1} circuit
 ├── basicFunctions.py       # Image loading, encoding utilities
 ├── classical_ed_methods.py # Sobel, Prewitt, Laplacian, Canny
-├── docs.py                 # Documentation utilities
+├── literature_archive.py   # Literature archive page
 ├── requirements.txt        # Python dependencies
-├── images/                 # Sample test images
+├── images/
 │   ├── samples/            # General sample images
-│   ├── license_plates/     # License plate test images
-│   └── others/             # Additional test images
+│   └── license_plates/     # License plate test images
+├── tests/                  # pytest regression suite
+├── research_archive/       # Curated QED prior research
 └── README.md
+```
+
+## Testing
+
+```bash
+pip install pytest
+python -m pytest tests/
 ```
 
 ## Installation
@@ -157,4 +165,4 @@ When processing large images with limited qubits:
 
 ## License
 
-This project is for research and educational purposes.
+MIT — see [LICENSE](./LICENSE).
