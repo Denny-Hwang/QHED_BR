@@ -31,7 +31,7 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 try:
     from basicFunctions import load_image_from_array, amplitude_encode
-    from qhed import QHED, build_qhed_circuit, edge_detection_stride
+    from qhed import QHED, build_qhed_circuit, edge_detection_stride, D2n_1_circuit
     from classical_ed_methods import (
         sobel_edge_detection,
         prewitt_edge_detection,
@@ -408,18 +408,22 @@ elif page == "3. Interactive Edge Detection":
     est_stride = max(est_patch_size - 2, 1)
     est_patches = int(np.ceil((img_size - 2) / est_stride)) ** 2 if img_size > est_patch_size else 1
 
+    # Statevector simulation cost is dominated by the amplitude-encoding step,
+    # which synthesises O(2^data_qb) gates. The statevector itself is small
+    # (2^q * 16 bytes for complex128) — the real cost is encoding wall time.
+    est_state_mb = (2 ** est_total_qb) * 16 / 1e6
+    est_encode_gates = 2 ** (est_total_qb - 1)
     if patch_qb >= 7:
         st.error(
             f"Patch size {est_patch_size}x{est_patch_size} ({est_total_qb} qubits): "
-            f"statevector requires a 2^{est_total_qb} = {2**est_total_qb:,} dimensional vector. "
-            f"The unitary matrix alone needs ~{(2**est_total_qb)**2 * 8 / 1e9:.1f} GB. "
-            f"This will likely run out of memory."
+            f"amplitude encoding synthesises ~{est_encode_gates:,} gates per patch. "
+            f"Expect minutes per patch — try a smaller patch (k ≤ 6) first."
         )
     elif patch_qb >= 6:
         st.warning(
             f"Patch size {est_patch_size}x{est_patch_size} ({est_total_qb} qubits): "
-            f"statevector simulation operates on a 2^{est_total_qb} = {2**est_total_qb:,} "
-            f"dimensional vector. This may be slow for large images."
+            f"amplitude encoding synthesises ~{est_encode_gates:,} gates per patch "
+            f"(statevector ≈ {est_state_mb:.1f} MB). May be slow for many patches."
         )
 
     if est_patches > 500:
@@ -1467,12 +1471,10 @@ Upload a small image and run QHED edge detection on actual IBM quantum hardware.
                     if len(norm) < target_len:
                         norm = np.pad(norm, (0, target_len - len(norm)))
 
-                    D2n_1 = np.roll(np.identity(2 ** total_qb), 1, axis=1)
-
                     qc = QuantumCircuit(total_qb)
                     qc.initialize(norm.tolist(), range(1, total_qb))
                     qc.h(0)
-                    qc.unitary(D2n_1, range(total_qb), label='D')
+                    qc.compose(D2n_1_circuit(total_qb), range(total_qb), inplace=True)
                     qc.h(0)
                     qc.measure_all()
 
