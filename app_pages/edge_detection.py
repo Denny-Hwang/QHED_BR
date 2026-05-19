@@ -19,9 +19,34 @@ from ui.helpers import (
     run_qhed_cached,
 )
 from ui.i18n import t
+from ui.presets import DEFAULT_PRESET, get_preset, sort_samples_by_quality
+
+_TAG_BADGE = {
+    "great": ("ed.tag_great", "#4CAF50"),
+    "good":  ("ed.tag_good",  "#2196F3"),
+    "fair":  ("ed.tag_fair",  "#FF9800"),
+    "unknown": (None, None),
+}
 
 
-def _select_image() -> np.ndarray | None:
+def _tag_badge(tag: str) -> str:
+    """Render a coloured pill for a sample's QHED-quality tag."""
+    key, color = _TAG_BADGE.get(tag, (None, None))
+    if key is None or color is None:
+        return ""
+    return (
+        f'<span style="background-color:{color};color:white;'
+        f'padding:2px 10px;border-radius:10px;font-size:0.78em;'
+        f'font-weight:500;margin-left:6px;">{t(key)}</span>'
+    )
+
+
+def _select_image() -> tuple[np.ndarray | None, str | None]:
+    """Return ``(image_array, relative_path_or_None)``.
+
+    The relative path is ``None`` for uploads — callers use it to look up
+    per-sample QHED parameter presets.
+    """
     image_source = st.radio(
         t("ed.source_label"),
         [t("ed.source_sample"), t("ed.source_upload")],
@@ -36,28 +61,63 @@ def _select_image() -> np.ndarray | None:
             for f in sorted(files):
                 if f.lower().endswith(exts):
                     rel = os.path.relpath(os.path.join(root, f), img_dir)
-                    available.append(rel)
-        available.sort()
+                    available.append(rel.replace(os.sep, "/"))
         if not available:
             st.warning("No sample images found in ./images/")
-            return None
+            return None, None
+        # QHED-friendly samples first so the dropdown defaults to a great demo.
+        available = sort_samples_by_quality(available)
 
-        # Honour a pre-selection coming from the home page's quick-start cards.
         pre = st.session_state.pop("__preselected_sample", None)
         default_idx = available.index(pre) if pre in available else 0
 
-        selected = st.selectbox("Select sample image", available, index=default_idx)
-        img_path = os.path.join(img_dir, selected)
+        def _fmt(rel: str) -> str:
+            tag = get_preset(rel).get("tag", "unknown")
+            mark = {"great": "★ ", "good": "● ", "fair": "○ "}.get(tag, "")
+            return f"{mark}{rel}"
+
+        selected = st.selectbox(
+            "Select sample image",
+            available,
+            index=default_idx,
+            format_func=_fmt,
+            key="__ed_sample_path",
+        )
+        tag = get_preset(selected).get("tag", "unknown")
+        badge = _tag_badge(tag)
+        if badge:
+            st.markdown(f"**Selected:** `{selected}` {badge}", unsafe_allow_html=True)
+        else:
+            st.caption(f"Selected: {selected}")
+
+        img_path = os.path.join(img_dir, selected.replace("/", os.sep))
         raw = np.array(Image.open(img_path))
-        st.image(raw, caption=f"Selected: {selected}", width=300)
-        return raw
+        st.image(raw, use_container_width=False, width=300)
+        return raw, selected
 
     uploaded = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg", "bmp"])
     if uploaded:
         raw = np.array(Image.open(uploaded))
         st.image(raw, caption="Uploaded image", width=300)
-        return raw
-    return None
+        return raw, None
+    return None, None
+
+
+def _apply_preset_if_sample_changed(sample_path: str | None) -> bool:
+    """If the selected sample has changed since last render, write its preset
+    into session state so the parameter widgets pick it up on this run.
+
+    Returns ``True`` when a preset was applied (i.e. the form was reset)."""
+    last = st.session_state.get("__ed_last_sample")
+    if sample_path == last:
+        return False
+
+    preset = get_preset(sample_path) if sample_path else DEFAULT_PRESET
+    st.session_state["__ed_img_size_exp"] = preset["img_size_exp"]
+    st.session_state["__ed_patch_qb"] = preset["patch_qb"]
+    st.session_state["__ed_thr_ratio"] = float(preset["thr_ratio"])
+    st.session_state["__ed_last_sample"] = sample_path
+    return True
 
 
 def render() -> None:
@@ -65,21 +125,36 @@ def render() -> None:
     st.markdown(t("ed.subtitle"))
 
     st.header(t("ed.section_select"))
-    input_image = _select_image()
+    input_image, sample_path = _select_image()
 
     if input_image is None:
         st.info(t("ed.info_select_image"))
         st.stop()
 
+    # When the user switches sample, refresh the parameter form with that
+    # sample's tuned preset. The rerun guarantees the widgets below pick up
+    # the new session-state values on their next render.
+    if _apply_preset_if_sample_changed(sample_path):
+        st.rerun()
+
     st.header(t("ed.section_params"))
+    if sample_path and get_preset(sample_path).get("tag") != "unknown":
+        st.info(f"{t('ed.preset_applied')} {t('ed.preset_hint')}")
+
+    img_size_options = list(range(4, 9))
+    img_size_default = st.session_state.get("__ed_img_size_exp", 6)
+    patch_qb_default = st.session_state.get("__ed_patch_qb", 4)
+    thr_default = float(st.session_state.get("__ed_thr_ratio", 0.7))
 
     col_p1, col_p2, col_p3 = st.columns(3)
     with col_p1:
+        img_size_idx = img_size_options.index(img_size_default) if img_size_default in img_size_options else 2
         img_size_exp = st.selectbox(
             t("ed.param_image_size"),
-            list(range(4, 9)),
-            index=2,
+            img_size_options,
+            index=img_size_idx,
             format_func=lambda x: f"{2**x}x{2**x} ({2**(2*x):,} pixels)",
+            key="__ed_img_size_exp",
         )
         img_size = 2 ** img_size_exp
 
@@ -89,15 +164,24 @@ def render() -> None:
         if not patch_qb_options:
             st.error("Image too small for minimum patch size (8x8). Increase image size to at least 16x16.")
             st.stop()
+        # If the preset value is out of range for the current image size,
+        # fall back to the largest legal option.
+        if patch_qb_default not in patch_qb_options:
+            patch_qb_default = patch_qb_options[-1]
+            st.session_state["__ed_patch_qb"] = patch_qb_default
         patch_qb = st.selectbox(
             t("ed.param_patch_qb"),
             patch_qb_options,
-            index=len(patch_qb_options) - 1,
+            index=patch_qb_options.index(patch_qb_default),
             format_func=lambda x: f"{x} qb/dim -> {2**x}x{2**x} patch ({2*x+1} total qubits)",
+            key="__ed_patch_qb",
         )
 
     with col_p3:
-        thr_ratio = st.slider(t("ed.param_threshold"), 0.1, 2.0, 0.7, 0.1)
+        thr_ratio = st.slider(
+            t("ed.param_threshold"), 0.1, 2.0, thr_default, 0.1,
+            key="__ed_thr_ratio",
+        )
 
     est_patch_size = 2 ** patch_qb
     est_total_qb = 2 * patch_qb + 1

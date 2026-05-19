@@ -38,13 +38,32 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "processors."
         ),
         "home.quickstart": "Quick Start — try a sample in one click",
-        "home.quickstart_hint": "Each card runs QHED + classical Sobel on a built-in image and shows the result.",
-        "home.card_cat": "Photo (cat)",
-        "home.card_coastline": "Satellite (coastline)",
-        "home.card_fingerprint": "Fingerprint",
+        "home.quickstart_hint": (
+            "Each card runs QHED on a synthetic image with sharp edges — the "
+            "regime where QHED's amplitude-difference detector is at its best — "
+            "and shows the result next to classical Sobel."
+        ),
+        "home.card_checkerboard": "Checkerboard pattern",
+        "home.blurb_checkerboard": "Regular grid — every cell boundary is a 1-pixel intensity step, the canonical QHED demo.",
+        "home.card_circles": "Concentric circles",
+        "home.blurb_circles": "Curved binary edges — QHED traces every ring with no anisotropy.",
+        "home.card_shapes": "Geometric shapes",
+        "home.blurb_shapes": "Sparse high-contrast shapes on a clean background.",
         "home.run_button": "Run sample",
-        "home.go_to_lab": "Open Interactive Lab",
-        "home.explore_more": "Or pick a page from the sidebar to dig deeper.",
+        "home.go_to_lab": "Open in Interactive Lab",
+        "home.explore_more": (
+            "Want to try your own image, tune parameters, or compare boundary "
+            "restoration modes? Head to the Interactive Edge Detection page."
+        ),
+
+        # Sample quality tags (used on Page 3)
+        "ed.tag_great": "QHED-friendly",
+        "ed.tag_good": "Works well",
+        "ed.tag_fair": "Photographic",
+        "ed.preset_applied": "Recommended settings applied for this sample.",
+        "ed.preset_hint": (
+            "These defaults come from per-sample tuning — feel free to override."
+        ),
 
         # Page 3 — Interactive Edge Detection
         "ed.title": "Interactive Edge Detection",
@@ -104,13 +123,29 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "경계 정보를 다항 시간 추가 연산으로 복원합니다."
         ),
         "home.quickstart": "빠른 시작 — 클릭 한 번으로 샘플 실행",
-        "home.quickstart_hint": "각 카드는 내장 이미지에 QHED + 고전 Sobel을 실행해 결과를 보여줍니다.",
-        "home.card_cat": "사진 (고양이)",
-        "home.card_coastline": "위성 (해안선)",
-        "home.card_fingerprint": "지문",
+        "home.quickstart_hint": (
+            "각 카드는 QHED가 가장 잘 동작하는 영역 — sharp 엣지를 가진 "
+            "합성 이미지에서 QHED를 돌려, 고전 Sobel과 결과를 나란히 보여줍니다."
+        ),
+        "home.card_checkerboard": "체커보드 패턴",
+        "home.blurb_checkerboard": "규칙 격자 — 모든 셀 경계가 1픽셀 강도 step. QHED의 정석 데모.",
+        "home.card_circles": "동심원",
+        "home.blurb_circles": "곡선 binary 엣지 — QHED는 모든 원을 등방성 있게 추적합니다.",
+        "home.card_shapes": "기하 도형",
+        "home.blurb_shapes": "깨끗한 배경 위의 고대비 도형들.",
         "home.run_button": "샘플 실행",
-        "home.go_to_lab": "인터랙티브 모드 열기",
-        "home.explore_more": "또는 사이드바에서 자세히 보고 싶은 페이지를 선택하세요.",
+        "home.go_to_lab": "인터랙티브 모드에서 열기",
+        "home.explore_more": (
+            "직접 이미지 올리거나, 파라미터를 조절하거나, BR 모드를 비교하려면 "
+            "인터랙티브 엣지 검출 페이지로 이동하세요."
+        ),
+
+        # Sample quality tags (used on Page 3)
+        "ed.tag_great": "QHED 최적",
+        "ed.tag_good": "잘 작동",
+        "ed.tag_fair": "사진형",
+        "ed.preset_applied": "이 샘플에 권장된 파라미터가 적용됐습니다.",
+        "ed.preset_hint": "이 기본값은 샘플별 튜닝 결과이며, 자유롭게 변경 가능합니다.",
 
         # Page 3 — Interactive Edge Detection
         "ed.title": "인터랙티브 엣지 검출",

@@ -39,6 +39,7 @@ jobs:
               'literature_archive.py',
               'ui/i18n.py',
               'ui/helpers.py',
+              'ui/presets.py',
               'app_pages/home.py',
               'app_pages/overview.py',
               'app_pages/circuit.py',
